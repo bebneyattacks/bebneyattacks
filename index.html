@@ -113,13 +113,13 @@
                 BEBNEY ATTACKS!
             </h1>
             <p class="text-gray-200 mb-6 text-base sm:text-lg font-semibold">
-                Defend your <span class="text-pink-400 font-bold">EGO</span> from incoming <span class="text-red-400 font-bold">Intervention Orders</span>!
+                Fire long-winded <span class="text-yellow-300 font-bold">Academic Screeds</span> to destroy <span class="text-red-400 font-bold">Intervention Orders</span>!
             </p>
 
             <div class="space-y-3 mb-8 text-left bg-black/70 p-4 rounded-2xl border border-pink-500/30 text-xs sm:text-sm font-medium">
                 <div class="flex justify-between items-center text-gray-200">
                     <span class="font-bold text-yellow-400">Desktop Controls:</span>
-                    <span>[WASD / Arrow Keys] = Move | [Space] = Fire</span>
+                    <span>[WASD / Arrow Keys] = Move | [Space] = Fire Screed</span>
                 </div>
                 <div class="flex justify-between items-center text-gray-200">
                     <span class="font-bold text-pink-400">Touch Controls:</span>
@@ -205,18 +205,18 @@
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
 
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(580, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.1);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(220, this.ctx.currentTime + 0.12);
 
-                gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
 
                 osc.connect(gain);
                 gain.connect(this.ctx.destination);
 
                 osc.start();
-                osc.stop(this.ctx.currentTime + 0.1);
+                osc.stop(this.ctx.currentTime + 0.12);
             }
 
             playPaperTear() {
@@ -430,12 +430,12 @@
                 this.lastShot = now;
 
                 if (this.tripleShotTimer > 0) {
-                    projectiles.push(new SodaCanProjectile(this.x, this.y - 40, 0, -14));
-                    projectiles.push(new SodaCanProjectile(this.x - 22, this.y - 30, -3.5, -13));
-                    projectiles.push(new SodaCanProjectile(this.x + 22, this.y - 30, 3.5, -13));
+                    projectiles.push(new AcademicScreedProjectile(this.x, this.y - 40, 0, -14));
+                    projectiles.push(new AcademicScreedProjectile(this.x - 22, this.y - 30, -3.5, -13));
+                    projectiles.push(new AcademicScreedProjectile(this.x + 22, this.y - 30, 3.5, -13));
                 } else {
-                    projectiles.push(new SodaCanProjectile(this.x - 14, this.y - 35, 0, -14));
-                    projectiles.push(new SodaCanProjectile(this.x + 14, this.y - 35, 0, -14));
+                    projectiles.push(new AcademicScreedProjectile(this.x - 14, this.y - 35, 0, -14));
+                    projectiles.push(new AcademicScreedProjectile(this.x + 14, this.y - 35, 0, -14));
                 }
             }
 
@@ -496,7 +496,7 @@
                 ctx.fillRect(-8 * p, 10 * p, 16 * p, 2 * p);  // Lower jaw
                 ctx.fillRect(-6 * p, 12 * p, 12 * p, 2 * p);  // Chin contour
 
-                // Face Highlights & Contours matching portrait
+                // Face Highlights & Contours
                 ctx.fillStyle = '#fef08a'; // Light skin highlights
                 ctx.fillRect(-7 * p, -2 * p, 14 * p, 8 * p);
                 ctx.fillStyle = '#eab308'; // Shading around jaw and cheeks
@@ -515,7 +515,7 @@
                 ctx.fillRect(-8 * p, 5 * p, 3 * p, 5 * p);   // Left cheek beard line
                 ctx.fillRect(5 * p, 5 * p, 3 * p, 5 * p);    // Right cheek beard line
 
-                // 5. Confident Smirk / Smile (Matching Photo)
+                // 5. Confident Smirk / Smile
                 ctx.fillStyle = '#451a03'; // Deep smile line
                 ctx.fillRect(-4 * p, 6 * p, 8 * p, 1 * p);   // Lip line
                 ctx.fillRect(4 * p, 5 * p, 2 * p, 1 * p);    // Characteristic right-side smirk curve upwards
@@ -540,7 +540,7 @@
                 ctx.fillRect(-7 * p, -2 * p, 3 * p, 1 * p);
                 ctx.fillRect(2 * p, -2 * p, 3 * p, 1 * p);
 
-                // 9. Black Baseball Cap (Angled down with visor shade)
+                // 9. Black Baseball Cap
                 ctx.fillStyle = '#0f172a'; // Cap crown
                 ctx.fillRect(-10 * p, -13 * p, 20 * p, 9 * p);
                 ctx.fillStyle = '#334155'; // Cap highlight
@@ -557,22 +557,27 @@
             }
         }
 
-        class SodaCanProjectile {
+        class AcademicScreedProjectile {
             constructor(x, y, vx, vy) {
                 this.x = x;
                 this.y = y;
                 this.vx = vx;
                 this.vy = vy;
-                this.radius = 8;
+                this.radius = 12;
+                this.width = 18;
+                this.height = 32;
                 this.markedForDeletion = false;
-                this.rotation = 0;
+                this.scrollOffset = Math.random() * 50;
+
+                const buzzwords = ["ERGO...", "JUSTIFIED", "CONSTRUCT", "PER SE", "DISCOURSE", "PROOFS", "THESIS", "INHERENT"];
+                this.buzzword = buzzwords[Math.floor(Math.random() * buzzwords.length)];
             }
 
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
-                this.rotation += 0.2;
-                if (this.y < -30 || this.x < -30 || this.x > canvas.width + 30) {
+                this.scrollOffset += 1.5;
+                if (this.y < -40 || this.x < -40 || this.x > canvas.width + 40) {
                     this.markedForDeletion = true;
                 }
             }
@@ -580,23 +585,28 @@
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
-                ctx.rotate(this.rotation);
 
-                ctx.shadowColor = '#ef4444';
-                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#facc15';
+                ctx.shadowBlur = 12;
 
-                // Red Soda Can Body
-                ctx.fillStyle = '#dc2626';
-                ctx.fillRect(-6, -9, 12, 18);
+                // Screed Scroll / Essay Document
+                ctx.fillStyle = '#fefce8';
+                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+                ctx.strokeStyle = '#eab308';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
 
-                // Metallic top/bottom
-                ctx.fillStyle = '#e5e7eb';
-                ctx.fillRect(-6, -11, 12, 2);
-                ctx.fillRect(-6, 9, 12, 2);
+                // Microscopic Academic Text Lines
+                ctx.fillStyle = '#451a03';
+                for (let i = -12; i <= 10; i += 4) {
+                    ctx.fillRect(-this.width / 2 + 2, i, this.width - 4, 1.5);
+                }
 
-                // White Stripe
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(-6, -2, 12, 5);
+                // Glowing Pretentious Buzzword Label overlay
+                ctx.fillStyle = '#a855f7';
+                ctx.font = 'bold 6px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.buzzword.substring(0, 5), 0, -this.height / 2 - 3);
 
                 ctx.restore();
             }
@@ -751,6 +761,44 @@
             }
         }
 
+        class BuzzwordParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                const words = ["ERGO", "PER SE", "DISCOURSE", "JUSTIFIED", "CONSTRUCT", "LOGIC"];
+                this.word = words[Math.floor(Math.random() * words.length)];
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 1;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.04 + 0.02;
+                this.markedForDeletion = false;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+                if (this.alpha <= 0) {
+                    this.markedForDeletion = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = '#fef08a';
+                ctx.shadowColor = '#eab308';
+                ctx.shadowBlur = 8;
+                ctx.font = 'bold 8px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.word, 0, 0);
+                ctx.restore();
+            }
+        }
+
         class PaperParticle {
             constructor(x, y, color) {
                 this.x = x;
@@ -834,6 +882,9 @@
             for (let i = 0; i < count; i++) {
                 const color = colors[Math.floor(Math.random() * colors.length)];
                 particles.push(new PaperParticle(x, y, color));
+            }
+            for (let i = 0; i < 4; i++) {
+                particles.push(new BuzzwordParticle(x, y));
             }
         }
 
