@@ -82,8 +82,8 @@
                 <div id="scoreText" class="text-2xl sm:text-3xl font-pixel font-extrabold text-yellow-300 glow-text-gold">0</div>
             </div>
             <div>
-                <div class="text-xs uppercase tracking-widest text-purple-400 font-bold font-pixel text-[10px]">Combo</div>
-                <div id="multiplierText" class="text-xl sm:text-2xl font-pixel font-bold text-pink-400">x1</div>
+                <div class="text-xs uppercase tracking-widest text-purple-400 font-bold font-pixel text-[10px]">Status</div>
+                <div id="tierText" class="text-xs sm:text-sm font-pixel font-bold text-pink-400">Tier 1: IVO Swarm</div>
             </div>
         </div>
 
@@ -96,6 +96,7 @@
             <div class="w-full bg-gray-800 h-3 rounded-md overflow-hidden p-0.5 border border-gray-700">
                 <div id="healthBar" class="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded transition-all duration-300 w-full"></div>
             </div>
+            <div id="activeBuffs" class="flex gap-2 mt-1 text-[9px] font-pixel text-yellow-300"></div>
         </div>
 
         <!-- Top Right High Score -->
@@ -113,13 +114,13 @@
                 BEBNEY ATTACKS!
             </h1>
             <p class="text-gray-200 mb-6 text-base sm:text-lg font-semibold">
-                Fire long-winded <span class="text-yellow-300 font-bold">Academic Screeds</span> to destroy <span class="text-red-400 font-bold">Intervention Orders</span>!
+                Fire long-winded <span class="text-yellow-300 font-bold">Academic Screeds</span> to destroy <span class="text-red-400 font-bold">IVO Notices, Fines & 5-0 Patrols</span>!
             </p>
 
             <div class="space-y-3 mb-8 text-left bg-black/70 p-4 rounded-2xl border border-pink-500/30 text-xs sm:text-sm font-medium">
                 <div class="flex justify-between items-center text-gray-200">
                     <span class="font-bold text-yellow-400">Desktop Controls:</span>
-                    <span>[WASD / Arrow Keys] = Move | [Space] = Fire Screed</span>
+                    <span>[WASD / Arrow Keys] Move | [Space] Fire Screed</span>
                 </div>
                 <div class="flex justify-between items-center text-gray-200">
                     <span class="font-bold text-pink-400">Touch Controls:</span>
@@ -164,8 +165,8 @@
                     <span id="finalScore" class="text-lg text-yellow-300">0</span>
                 </div>
                 <div class="flex justify-between items-center text-gray-400">
-                    <span>Waves Defied:</span>
-                    <span id="finalWave" class="text-base text-pink-400">0</span>
+                    <span>Highest Tier:</span>
+                    <span id="finalTier" class="text-base text-pink-400">1</span>
                 </div>
                 <div id="newHighContainer" class="hidden pt-2 border-t border-white/10 text-amber-300 font-bold text-xs tracking-wider animate-pulse">
                     👑 NEW HIGH SCORE RECORD!
@@ -217,6 +218,25 @@
 
                 osc.start();
                 osc.stop(this.ctx.currentTime + 0.12);
+            }
+
+            playEnemyShoot() {
+                if (!this.ctx || this.isMuted) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.1);
+
+                gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
             }
 
             playPaperTear() {
@@ -274,6 +294,25 @@
                 osc.stop(now + 0.3);
             }
 
+            playDeflect() {
+                if (!this.ctx || this.isMuted) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.08);
+
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            }
+
             playGameOver() {
                 if (!this.ctx || this.isMuted) return;
                 const now = this.ctx.currentTime;
@@ -302,15 +341,16 @@
 
         const hud = document.getElementById('hud');
         const scoreText = document.getElementById('scoreText');
-        const multiplierText = document.getElementById('multiplierText');
+        const tierText = document.getElementById('tierText');
         const healthBar = document.getElementById('healthBar');
         const healthPercent = document.getElementById('healthPercent');
+        const activeBuffs = document.getElementById('activeBuffs');
         const hudHighScore = document.getElementById('hudHighScore');
         const startScreen = document.getElementById('startScreen');
         const pauseScreen = document.getElementById('pauseScreen');
         const gameOverScreen = document.getElementById('gameOverScreen');
         const finalScoreText = document.getElementById('finalScore');
-        const finalWaveText = document.getElementById('finalWave');
+        const finalTierText = document.getElementById('finalTier');
         const bestScoreText = document.getElementById('bestScore');
         const newHighContainer = document.getElementById('newHighContainer');
 
@@ -322,9 +362,7 @@
         let animationId;
         let gameState = 'START';
         let score = 0;
-        let wave = 1;
-        let multiplier = 1;
-        let killCount = 0;
+        let currentTier = 1;
         let highScore = parseInt(localStorage.getItem('bebney_high_score') || '0');
 
         hudHighScore.textContent = highScore;
@@ -384,22 +422,27 @@
             constructor() {
                 this.width = 84;
                 this.height = 84;
-                this.radius = 42;
+                this.radius = 38;
                 this.x = canvas.width / 2;
                 this.y = canvas.height - 130;
                 this.speed = 8.5;
                 this.health = 100;
                 this.maxHealth = 100;
                 this.lastShot = 0;
-                this.shootDelay = 150;
-                this.tripleShotTimer = 0;
-                this.shieldActive = false;
-                this.speedBoostTimer = 0;
+                this.shootDelay = 160;
+
+                // Power-up Timers (ms)
+                this.shieldTimer = 0;
+                this.maxShieldTime = 7000; // 7 seconds max
+                this.maniaTimer = 0;
+                this.weedTimer = 0;
+
+                this.damageRingFlash = 0;
                 this.egoPulse = 0;
             }
 
-            update(now) {
-                const currentSpeed = this.speedBoostTimer > 0 ? this.speed * 1.5 : this.speed;
+            update(now, delta) {
+                const currentSpeed = this.speed;
 
                 if (keys.ArrowLeft || keys.KeyA) this.x -= currentSpeed;
                 if (keys.ArrowRight || keys.KeyD) this.x += currentSpeed;
@@ -416,24 +459,49 @@
                 this.x = Math.max(this.width / 2, Math.min(canvas.width - this.width / 2, this.x));
                 this.y = Math.max(this.height / 2, Math.min(canvas.height - this.height / 2, this.y));
 
-                if ((keys.Space || touchActive) && now - this.lastShot > (this.speedBoostTimer > 0 ? 100 : this.shootDelay)) {
+                // Shoot rate calculation (3x speed in Mania mode)
+                const effectiveDelay = this.maniaTimer > 0 ? this.shootDelay / 3 : this.shootDelay;
+
+                if ((keys.Space || touchActive) && now - this.lastShot > effectiveDelay) {
                     this.shoot(now);
                 }
 
-                if (this.tripleShotTimer > 0) this.tripleShotTimer -= 16;
-                if (this.speedBoostTimer > 0) this.speedBoostTimer -= 16;
+                if (this.shieldTimer > 0) this.shieldTimer -= delta;
+                if (this.maniaTimer > 0) this.maniaTimer -= delta;
+                if (this.weedTimer > 0) this.weedTimer -= delta;
+
+                if (this.damageRingFlash > 0) this.damageRingFlash -= 0.05;
                 this.egoPulse += 0.06;
+            }
+
+            takeHitDamage(amount) {
+                if (this.shieldTimer > 0) {
+                    // Shield absorbs hit, reducing timer by 1.5 seconds (1500 ms)
+                    this.shieldTimer = Math.max(0, this.shieldTimer - 1500);
+                    this.damageRingFlash = 1.0;
+                    soundManager.playDeflect();
+                } else {
+                    this.health -= amount;
+                    soundManager.playPaperTear();
+                    if (this.health <= 0) {
+                        triggerGameOver();
+                    }
+                }
             }
 
             shoot(now) {
                 soundManager.playBlaster();
                 this.lastShot = now;
 
-                if (this.tripleShotTimer > 0) {
-                    projectiles.push(new AcademicScreedProjectile(this.x, this.y - 40, 0, -14));
-                    projectiles.push(new AcademicScreedProjectile(this.x - 22, this.y - 30, -3.5, -13));
-                    projectiles.push(new AcademicScreedProjectile(this.x + 22, this.y - 30, 3.5, -13));
+                if (this.weedTimer > 0) {
+                    // Medical Weed: 5-way green spread shot
+                    projectiles.push(new AcademicScreedProjectile(this.x, this.y - 40, 0, -14, '#4ade80'));
+                    projectiles.push(new AcademicScreedProjectile(this.x - 20, this.y - 35, -3, -13, '#4ade80'));
+                    projectiles.push(new AcademicScreedProjectile(this.x + 20, this.y - 35, 3, -13, '#4ade80'));
+                    projectiles.push(new AcademicScreedProjectile(this.x - 35, this.y - 25, -6, -12, '#4ade80'));
+                    projectiles.push(new AcademicScreedProjectile(this.x + 35, this.y - 25, 6, -12, '#4ade80'));
                 } else {
+                    // Dual Academic Screeds
                     projectiles.push(new AcademicScreedProjectile(this.x - 14, this.y - 35, 0, -14));
                     projectiles.push(new AcademicScreedProjectile(this.x + 14, this.y - 35, 0, -14));
                 }
@@ -443,23 +511,45 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
 
-                // Delusion Shield Outer Bubble Effect
-                if (this.shieldActive) {
-                    ctx.strokeStyle = '#38bdf8';
-                    ctx.lineWidth = 4;
-                    ctx.shadowColor = '#38bdf8';
-                    ctx.shadowBlur = 24;
+                // DELUSION SHIELD RENDERING (Yellow Circular Timer Ring + Orange Damage Ring Burst)
+                if (this.shieldTimer > 0) {
+                    const ratio = Math.max(0, this.shieldTimer / this.maxShieldTime);
+                    const ringRadius = 56;
+
+                    // Background ring track
                     ctx.beginPath();
-                    ctx.arc(0, 0, 56, 0, Math.PI * 2);
+                    ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(234, 179, 8, 0.2)';
+                    ctx.lineWidth = 6;
                     ctx.stroke();
 
-                    ctx.fillStyle = '#7dd3fc';
-                    ctx.font = '8px "Press Start 2P"';
+                    // Active yellow deplete ring
+                    ctx.beginPath();
+                    ctx.arc(0, 0, ringRadius, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * ratio));
+                    ctx.strokeStyle = '#facc15';
+                    ctx.lineWidth = 6;
+                    ctx.shadowColor = '#eab308';
+                    ctx.shadowBlur = 15;
+                    ctx.stroke();
+
+                    // Orange Damage Ring Flash on hit impact
+                    if (this.damageRingFlash > 0) {
+                        ctx.beginPath();
+                        ctx.arc(0, 0, ringRadius + 4, 0, Math.PI * 2);
+                        ctx.strokeStyle = `rgba(249, 115, 22, ${this.damageRingFlash})`;
+                        ctx.lineWidth = 8;
+                        ctx.shadowColor = '#f97316';
+                        ctx.shadowBlur = 25;
+                        ctx.stroke();
+                    }
+
+                    ctx.fillStyle = '#fef08a';
+                    ctx.font = '7px "Press Start 2P"';
                     ctx.textAlign = 'center';
-                    ctx.fillText("DELUSION SHIELD", 0, -64);
+                    ctx.fillText("DELUSION SHIELD", 0, -66);
                 }
 
-                // Inflated Glowing Pink/Purple EGO Orb
+                // Inflated Glowing EGO Orb
                 const egoRadius = 42 + Math.sin(this.egoPulse) * 3.5;
                 const egoGrad = ctx.createRadialGradient(0, 0, 8, 0, 0, egoRadius);
                 egoGrad.addColorStop(0, 'rgba(244, 114, 182, 0.95)');
@@ -479,27 +569,27 @@
                 ctx.textAlign = 'center';
                 ctx.fillText("EGO", 0, 50);
 
-                // HIGH-PRECISION PHOTO-ACCURATE 8-BIT BEBNEY FACE SPRITE
+                // 8-BIT BEBNEY FACE SPRITE
                 ctx.shadowBlur = 0;
-                const p = 2.0; // Pixel grid scaling factor
+                const p = 2.0;
 
                 ctx.save();
-                ctx.translate(0, -4); // Fine alignment inside orb
+                ctx.translate(0, -4);
 
                 // 1. Neck / Collar Base
-                ctx.fillStyle = '#1e293b'; // Charcoal hoodie collar
+                ctx.fillStyle = '#1e293b';
                 ctx.fillRect(-6 * p, 11 * p, 12 * p, 4 * p);
 
-                // 2. Face & Jaw Outline / Base Skin
-                ctx.fillStyle = '#fde047'; // Primary warm pixel skin tone
-                ctx.fillRect(-9 * p, -4 * p, 18 * p, 14 * p); // Mid-face
-                ctx.fillRect(-8 * p, 10 * p, 16 * p, 2 * p);  // Lower jaw
-                ctx.fillRect(-6 * p, 12 * p, 12 * p, 2 * p);  // Chin contour
+                // 2. Face & Jaw Outline
+                ctx.fillStyle = '#fde047';
+                ctx.fillRect(-9 * p, -4 * p, 18 * p, 14 * p);
+                ctx.fillRect(-8 * p, 10 * p, 16 * p, 2 * p);
+                ctx.fillRect(-6 * p, 12 * p, 12 * p, 2 * p);
 
-                // Face Highlights & Contours
-                ctx.fillStyle = '#fef08a'; // Light skin highlights
+                // Highlights
+                ctx.fillStyle = '#fef08a';
                 ctx.fillRect(-7 * p, -2 * p, 14 * p, 8 * p);
-                ctx.fillStyle = '#eab308'; // Shading around jaw and cheeks
+                ctx.fillStyle = '#eab308';
                 ctx.fillRect(-9 * p, 4 * p, 2 * p, 6 * p);
                 ctx.fillRect(7 * p, 4 * p, 2 * p, 6 * p);
 
@@ -509,44 +599,43 @@
                 ctx.fillRect(9 * p, -1 * p, 1 * p, 4 * p);
 
                 // 4. Stubble & Goatee Detail
-                ctx.fillStyle = '#78350f'; // Dark brown stubble tone
-                ctx.fillRect(-5 * p, 8 * p, 10 * p, 5 * p);  // Chin goatee
-                ctx.fillRect(-3 * p, 6 * p, 6 * p, 2 * p);   // Under lip
-                ctx.fillRect(-8 * p, 5 * p, 3 * p, 5 * p);   // Left cheek beard line
-                ctx.fillRect(5 * p, 5 * p, 3 * p, 5 * p);    // Right cheek beard line
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(-5 * p, 8 * p, 10 * p, 5 * p);
+                ctx.fillRect(-3 * p, 6 * p, 6 * p, 2 * p);
+                ctx.fillRect(-8 * p, 5 * p, 3 * p, 5 * p);
+                ctx.fillRect(5 * p, 5 * p, 3 * p, 5 * p);
 
-                // 5. Confident Smirk / Smile
-                ctx.fillStyle = '#451a03'; // Deep smile line
-                ctx.fillRect(-4 * p, 6 * p, 8 * p, 1 * p);   // Lip line
-                ctx.fillRect(4 * p, 5 * p, 2 * p, 1 * p);    // Characteristic right-side smirk curve upwards
+                // 5. Smirk
+                ctx.fillStyle = '#451a03';
+                ctx.fillRect(-4 * p, 6 * p, 8 * p, 1 * p);
+                ctx.fillRect(4 * p, 5 * p, 2 * p, 1 * p);
 
                 // 6. Nose
                 ctx.fillStyle = '#ca8a04';
                 ctx.fillRect(-1 * p, 1 * p, 3 * p, 4 * p);
                 ctx.fillRect(-2 * p, 4 * p, 5 * p, 1 * p);
 
-                // 7. Eyes Behind Glasses
-                ctx.fillStyle = '#1e1b4b'; // Dark eyes
+                // 7. Eyes
+                ctx.fillStyle = '#1e1b4b';
                 ctx.fillRect(-6 * p, -1 * p, 3 * p, 2 * p);
                 ctx.fillRect(3 * p, -1 * p, 3 * p, 2 * p);
 
-                // 8. Translucent Frame Glasses & Highlights
-                ctx.fillStyle = '#94a3b8'; // Metal translucent frame outline
+                // 8. Glasses
+                ctx.fillStyle = '#94a3b8';
                 ctx.fillRect(-8 * p, -3 * p, 7 * p, 5 * p);
                 ctx.fillRect(1 * p, -3 * p, 7 * p, 5 * p);
-                ctx.fillRect(-1 * p, -2 * p, 2 * p, 1 * p); // Nose bridge
+                ctx.fillRect(-1 * p, -2 * p, 2 * p, 1 * p);
 
-                ctx.fillStyle = '#f8fafc'; // White glass glare reflection
+                ctx.fillStyle = '#f8fafc';
                 ctx.fillRect(-7 * p, -2 * p, 3 * p, 1 * p);
                 ctx.fillRect(2 * p, -2 * p, 3 * p, 1 * p);
 
                 // 9. Black Baseball Cap
-                ctx.fillStyle = '#0f172a'; // Cap crown
+                ctx.fillStyle = '#0f172a';
                 ctx.fillRect(-10 * p, -13 * p, 20 * p, 9 * p);
-                ctx.fillStyle = '#334155'; // Cap highlight
+                ctx.fillStyle = '#334155';
                 ctx.fillRect(-9 * p, -12 * p, 18 * p, 2 * p);
 
-                // Cap Visor / Curved Brim
                 ctx.fillStyle = '#1e293b';
                 ctx.fillRect(-12 * p, -5 * p, 24 * p, 2 * p);
                 ctx.fillStyle = '#0f172a';
@@ -558,25 +647,24 @@
         }
 
         class AcademicScreedProjectile {
-            constructor(x, y, vx, vy) {
+            constructor(x, y, vx, vy, color = '#fefce8') {
                 this.x = x;
                 this.y = y;
                 this.vx = vx;
                 this.vy = vy;
+                this.color = color;
                 this.radius = 12;
                 this.width = 18;
-                this.height = 32;
+                this.height = 30;
                 this.markedForDeletion = false;
-                this.scrollOffset = Math.random() * 50;
 
-                const buzzwords = ["ERGO...", "JUSTIFIED", "CONSTRUCT", "PER SE", "DISCOURSE", "PROOFS", "THESIS", "INHERENT"];
+                const buzzwords = ["ERGO...", "PER SE", "CONSTRUCT", "DISCOURSE", "DIALECTIC", "JUSTIFIED"];
                 this.buzzword = buzzwords[Math.floor(Math.random() * buzzwords.length)];
             }
 
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
-                this.scrollOffset += 1.5;
                 if (this.y < -40 || this.x < -40 || this.x > canvas.width + 40) {
                     this.markedForDeletion = true;
                 }
@@ -586,23 +674,20 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
 
-                ctx.shadowColor = '#facc15';
+                ctx.shadowColor = this.color;
                 ctx.shadowBlur = 12;
 
-                // Screed Scroll / Essay Document
-                ctx.fillStyle = '#fefce8';
+                ctx.fillStyle = this.color;
                 ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
                 ctx.strokeStyle = '#eab308';
                 ctx.lineWidth = 1.5;
                 ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
 
-                // Microscopic Academic Text Lines
                 ctx.fillStyle = '#451a03';
-                for (let i = -12; i <= 10; i += 4) {
+                for (let i = -10; i <= 8; i += 4) {
                     ctx.fillRect(-this.width / 2 + 2, i, this.width - 4, 1.5);
                 }
 
-                // Glowing Pretentious Buzzword Label overlay
                 ctx.fillStyle = '#a855f7';
                 ctx.font = 'bold 6px "Press Start 2P"';
                 ctx.textAlign = 'center';
@@ -612,31 +697,61 @@
             }
         }
 
-        class InterventionOrderEnemy {
+        class LegalFeeProjectile {
+            constructor(x, y, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.radius = 8;
+                this.markedForDeletion = false;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.y > canvas.height + 20 || this.x < -20 || this.x > canvas.width + 20) {
+                    this.markedForDeletion = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                ctx.shadowColor = '#ef4444';
+                ctx.shadowBlur = 12;
+                ctx.fillStyle = '#dc2626';
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fef08a';
+                ctx.font = 'bold 9px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText("$", 0, 3);
+
+                ctx.restore();
+            }
+        }
+
+        class IVOEnemy {
             constructor() {
-                this.width = 84;
-                this.height = 52;
-                this.radius = 36;
+                this.width = 80;
+                this.height = 48;
+                this.radius = 34;
                 this.x = Math.random() * (canvas.width - this.width - 40) + 20 + this.width / 2;
                 this.y = -this.height - 20;
-                this.speed = Math.random() * 2 + 1.8 + (wave * 0.25);
+                this.speed = Math.random() * 2 + 2.0;
+                this.hp = 2;
                 this.markedForDeletion = false;
-
-                const legalTitles = [
-                    "INTERVENTION ORDER",
-                    "RESTRAINING NOTICE",
-                    "STOP ORDER",
-                    "COURT SUMMONS"
-                ];
-                this.title = legalTitles[Math.floor(Math.random() * legalTitles.length)];
-                this.hp = this.title.includes("RESTRAINING") ? 3 : 2;
                 this.wobbleAngle = Math.random() * Math.PI * 2;
             }
 
             update() {
                 this.y += this.speed;
                 this.wobbleAngle += 0.05;
-                this.x += Math.sin(this.wobbleAngle) * 1.3;
+                this.x += Math.sin(this.wobbleAngle) * 1.5;
 
                 if (this.y > canvas.height + this.height) {
                     this.markedForDeletion = true;
@@ -649,47 +764,145 @@
 
                 ctx.fillStyle = '#fffbe2';
                 ctx.strokeStyle = '#dc2626';
-                ctx.lineWidth = 2.5;
-
+                ctx.lineWidth = 2;
                 ctx.shadowColor = 'rgba(220, 38, 38, 0.4)';
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 8;
 
-                // Paper background
                 ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
                 ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
 
-                // Header Banner
                 ctx.fillStyle = '#dc2626';
-                ctx.fillRect(-this.width / 2 + 4, -this.height / 2 + 4, this.width - 8, 12);
+                ctx.fillRect(-this.width / 2 + 3, -this.height / 2 + 3, this.width - 6, 11);
 
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 7px "Press Start 2P"';
                 ctx.textAlign = 'center';
-                ctx.fillText("OFFICIAL NOTICE", 0, -this.height / 2 + 13);
+                ctx.fillText("IVO NOTICE", 0, -this.height / 2 + 11);
 
-                // Main Title
                 ctx.fillStyle = '#111827';
                 ctx.font = 'bold 7px sans-serif';
-                ctx.fillText(this.title, 0, 5);
+                ctx.fillText("RESTRAINING ORDER", 0, 5);
 
-                // Legal Document Lines
-                ctx.strokeStyle = '#9ca3af';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(-28, 14); ctx.lineTo(28, 14);
-                ctx.moveTo(-22, 18); ctx.lineTo(22, 18);
-                ctx.stroke();
-
-                // Red Official Stamp
-                ctx.save();
-                ctx.rotate(-0.2);
-                ctx.strokeStyle = '#b91c1c';
-                ctx.lineWidth = 1.5;
-                ctx.strokeRect(-24, -6, 48, 15);
-                ctx.fillStyle = '#b91c1c';
-                ctx.font = 'bold 8px sans-serif';
-                ctx.fillText("ENFORCED", 0, 5);
                 ctx.restore();
+            }
+        }
+
+        class FineEnemy {
+            constructor() {
+                this.width = 84;
+                this.height = 50;
+                this.radius = 36;
+                this.x = Math.random() * (canvas.width - this.width - 40) + 20 + this.width / 2;
+                this.y = -this.height - 20;
+                this.speed = Math.random() * 1.8 + 1.8;
+                this.hp = 3;
+                this.canShoot = currentTier >= 3;
+                this.lastShot = 0;
+                this.shootInterval = 2200 - Math.min(1000, (score - 10000) * 0.05);
+                this.markedForDeletion = false;
+            }
+
+            update(now) {
+                this.y += this.speed;
+
+                if (this.canShoot && now - this.lastShot > this.shootInterval && this.y > 40 && this.y < canvas.height - 180) {
+                    this.lastShot = now;
+                    soundManager.playEnemyShoot();
+                    // Aim Legal Fee ($) towards player position
+                    const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                    const speed = 5.5;
+                    enemyProjectiles.push(new LegalFeeProjectile(this.x, this.y + 20, Math.cos(angle) * speed, Math.sin(angle) * speed));
+                }
+
+                if (this.y > canvas.height + this.height) {
+                    this.markedForDeletion = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                ctx.fillStyle = '#fef3c7';
+                ctx.strokeStyle = '#d97706';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = '#f59e0b';
+                ctx.shadowBlur = 10;
+
+                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+                ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
+
+                ctx.fillStyle = '#d97706';
+                ctx.fillRect(-this.width / 2 + 3, -this.height / 2 + 3, this.width - 6, 11);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 7px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText("PENALTY FINE", 0, -this.height / 2 + 11);
+
+                ctx.fillStyle = '#b45309';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText("$$$ DUE $$$", 0, 8);
+
+                ctx.restore();
+            }
+        }
+
+        class FiveZeroPoliceEnemy {
+            constructor() {
+                this.width = 96;
+                this.height = 54;
+                this.radius = 42;
+                this.x = Math.random() * (canvas.width - this.width - 80) + 40 + this.width / 2;
+                this.y = 70;
+                this.vx = (Math.random() < 0.5 ? 1 : -1) * 3.5;
+                this.invincible = true;
+                this.lastShot = 0;
+                this.shootInterval = 1400;
+                this.markedForDeletion = false;
+            }
+
+            update(now) {
+                this.x += this.vx;
+                if (this.x < this.width / 2 + 20 || this.x > canvas.width - this.width / 2 - 20) {
+                    this.vx *= -1;
+                }
+
+                if (now - this.lastShot > this.shootInterval) {
+                    this.lastShot = now;
+                    soundManager.playEnemyShoot();
+                    // Dual streams down
+                    enemyProjectiles.push(new LegalFeeProjectile(this.x - 20, this.y + 25, -1, 6));
+                    enemyProjectiles.push(new LegalFeeProjectile(this.x + 20, this.y + 25, 1, 6));
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                ctx.fillStyle = '#1e3a8a';
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#3b82f6';
+                ctx.shadowBlur = 18;
+
+                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+                ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
+
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(-this.width / 2 + 4, -this.height / 2 + 4, 12, 10);
+                ctx.fillStyle = '#3b82f6';
+                ctx.fillRect(this.width / 2 - 16, -this.height / 2 + 4, 12, 10);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 11px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText("5-0", 0, 4);
+
+                ctx.fillStyle = '#93c5fd';
+                ctx.font = 'bold 7px sans-serif';
+                ctx.fillText("POLICE PATROL", 0, 18);
 
                 ctx.restore();
             }
@@ -717,9 +930,9 @@
                 ctx.translate(this.x, this.y);
 
                 if (this.type === 'DELUSION_SHIELD') {
-                    ctx.shadowColor = '#38bdf8';
+                    ctx.shadowColor = '#facc15';
                     ctx.shadowBlur = 14;
-                    ctx.fillStyle = '#0284c7';
+                    ctx.fillStyle = '#ca8a04';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                     ctx.fill();
@@ -733,7 +946,7 @@
                 } else if (this.type === 'MANIA') {
                     ctx.shadowColor = '#eab308';
                     ctx.shadowBlur = 14;
-                    ctx.fillStyle = '#ca8a04';
+                    ctx.fillStyle = '#a16207';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                     ctx.fill();
@@ -765,7 +978,7 @@
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                const words = ["ERGO", "PER SE", "DISCOURSE", "JUSTIFIED", "CONSTRUCT", "LOGIC"];
+                const words = ["ERGO", "PER SE", "CONSTRUCT", "JUSTIFIED", "DIALECTIC", "LOGIC"];
                 this.word = words[Math.floor(Math.random() * words.length)];
                 const angle = Math.random() * Math.PI * 2;
                 const speed = Math.random() * 4 + 1;
@@ -795,6 +1008,39 @@
                 ctx.font = 'bold 8px "Press Start 2P"';
                 ctx.textAlign = 'center';
                 ctx.fillText(this.word, 0, 0);
+                ctx.restore();
+            }
+        }
+
+        class SparkParticle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color || '#3b82f6';
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 5 + 2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.alpha = 1;
+                this.decay = 0.05;
+                this.markedForDeletion = false;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+                if (this.alpha <= 0) this.markedForDeletion = true;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 6;
+                ctx.fillRect(-2, -2, 4, 4);
                 ctx.restore();
             }
         }
@@ -861,13 +1107,16 @@
             }
         }
 
+        // Global State Arrays
         let bgParticles = [];
         let player = new BebneyPlayer();
         let projectiles = [];
-        let orders = [];
+        let enemyProjectiles = [];
+        let enemies = [];
         let powerups = [];
         let particles = [];
-        let lastOrderSpawn = 0;
+        let lastEnemySpawn = 0;
+        let lastTimestamp = 0;
 
         function initBackground() {
             bgParticles = [];
@@ -896,20 +1145,42 @@
 
         function resetGame() {
             score = 0;
-            wave = 1;
-            multiplier = 1;
-            killCount = 0;
+            currentTier = 1;
             player = new BebneyPlayer();
             projectiles = [];
-            orders = [];
+            enemyProjectiles = [];
+            enemies = [];
             powerups = [];
             particles = [];
             updateHUD();
         }
 
+        function updateTierProgression() {
+            if (score >= 25000) {
+                currentTier = 5;
+                tierText.textContent = "Tier 5: TOTAL EGO OVERWHELM";
+                tierText.className = "text-xs sm:text-sm font-pixel font-bold text-red-500 animate-pulse";
+            } else if (score >= 15000) {
+                currentTier = 4;
+                tierText.textContent = "Tier 4: 5-0 Patrol";
+                tierText.className = "text-xs sm:text-sm font-pixel font-bold text-blue-400";
+            } else if (score >= 10000) {
+                currentTier = 3;
+                tierText.textContent = "Tier 3: Fine Retaliation";
+                tierText.className = "text-xs sm:text-sm font-pixel font-bold text-amber-400";
+            } else if (score >= 5000) {
+                currentTier = 2;
+                tierText.textContent = "Tier 2: Penalty Wave";
+                tierText.className = "text-xs sm:text-sm font-pixel font-bold text-yellow-300";
+            } else {
+                currentTier = 1;
+                tierText.textContent = "Tier 1: IVO Swarm";
+                tierText.className = "text-xs sm:text-sm font-pixel font-bold text-pink-400";
+            }
+        }
+
         function updateHUD() {
             scoreText.textContent = score;
-            multiplierText.textContent = `x${multiplier}`;
             healthPercent.textContent = `${Math.max(0, Math.round(player.health))}%`;
             healthBar.style.width = `${Math.max(0, player.health)}%`;
 
@@ -918,77 +1189,101 @@
             } else {
                 healthBar.className = "h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded transition-all duration-300 w-full";
             }
+
+            // Render active powerup badges
+            let buffHTML = '';
+            if (player.shieldTimer > 0) buffHTML += `<span>🛡️ ${(player.shieldTimer/1000).toFixed(1)}s</span> `;
+            if (player.maniaTimer > 0) buffHTML += `<span>⚡ ${(player.maniaTimer/1000).toFixed(1)}s</span> `;
+            if (player.weedTimer > 0) buffHTML += `<span>🌿 ${(player.weedTimer/1000).toFixed(1)}s</span> `;
+            activeBuffs.innerHTML = buffHTML;
+
+            updateTierProgression();
         }
 
         function gameLoop(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const delta = timestamp - lastTimestamp;
+            lastTimestamp = timestamp;
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             bgParticles.forEach(p => { p.update(); p.draw(); });
 
             if (gameState === 'PLAYING') {
-                const spawnInterval = Math.max(340, 1050 - (wave * 85));
-                if (timestamp - lastOrderSpawn > spawnInterval) {
-                    orders.push(new InterventionOrderEnemy());
-                    lastOrderSpawn = timestamp;
-                }
+                // Tier based enemy spawning
+                const spawnInterval = Math.max(280, 1050 - (currentTier * 140));
+                if (timestamp - lastEnemySpawn > spawnInterval) {
+                    lastEnemySpawn = timestamp;
 
-                player.update(timestamp);
-                player.draw();
+                    if (currentTier === 1) {
+                        enemies.push(new IVOEnemy());
+                    } else if (currentTier === 2) {
+                        if (Math.random() < 0.6) enemies.push(new IVOEnemy());
+                        else enemies.push(new FineEnemy());
+                    } else if (currentTier >= 3) {
+                        if (Math.random() < 0.4) enemies.push(new IVOEnemy());
+                        else enemies.push(new FineEnemy());
 
-                projectiles.forEach(p => {
-                    p.update();
-                    p.draw();
-                });
-
-                orders.forEach(order => {
-                    order.update();
-                    order.draw();
-
-                    // Collision player <-> order
-                    if (checkCircleCollision(player, order)) {
-                        order.markedForDeletion = true;
-                        spawnPaperTear(order.x, order.y, 22);
-
-                        if (player.shieldActive) {
-                            player.shieldActive = false;
-                            soundManager.playPaperTear();
-                        } else {
-                            player.health -= 25;
-                            multiplier = 1;
-                            soundManager.playPaperTear();
-                            updateHUD();
-
-                            if (player.health <= 0) {
-                                triggerGameOver();
-                            }
+                        // Spawn Tier 4 "5-0" Police patrol if none exists
+                        if (currentTier >= 4 && !enemies.some(e => e instanceof FiveZeroPoliceEnemy)) {
+                            enemies.push(new FiveZeroPoliceEnemy());
                         }
                     }
+                }
 
-                    // Collision projectile <-> order
+                player.update(timestamp, delta);
+                player.draw();
+
+                projectiles.forEach(p => { p.update(); p.draw(); });
+                enemyProjectiles.forEach(ep => {
+                    ep.update();
+                    ep.draw();
+
+                    // Collision enemy projectile -> player
+                    if (checkCircleCollision(player, ep)) {
+                        ep.markedForDeletion = true;
+                        player.takeHitDamage(15);
+                        updateHUD();
+                    }
+                });
+
+                enemies.forEach(enemy => {
+                    enemy.update(timestamp);
+                    enemy.draw();
+
+                    // Collision player <-> enemy body
+                    if (checkCircleCollision(player, enemy)) {
+                        if (!enemy.invincible) enemy.markedForDeletion = true;
+                        spawnPaperTear(enemy.x, enemy.y, 22);
+                        player.takeHitDamage(25);
+                        updateHUD();
+                    }
+
+                    // Collision player projectile <-> enemy
                     projectiles.forEach(proj => {
-                        if (!proj.markedForDeletion && !order.markedForDeletion && checkCircleCollision(proj, order)) {
+                        if (!proj.markedForDeletion && !enemy.markedForDeletion && checkCircleCollision(proj, enemy)) {
                             proj.markedForDeletion = true;
-                            order.hp--;
 
-                            if (order.hp <= 0) {
-                                order.markedForDeletion = true;
-                                killCount++;
-                                score += 100 * multiplier;
-                                soundManager.playPaperTear();
-                                spawnPaperTear(order.x, order.y, 18);
-
-                                if (killCount % 8 === 0) {
-                                    wave++;
-                                    multiplier++;
+                            if (enemy.invincible) {
+                                soundManager.playDeflect();
+                                for (let i = 0; i < 6; i++) {
+                                    particles.push(new SparkParticle(proj.x, proj.y));
                                 }
-
-                                if (Math.random() < 0.25) {
-                                    powerups.push(new GamerPowerup(order.x, order.y));
-                                }
-
-                                updateHUD();
                             } else {
-                                spawnPaperTear(proj.x, proj.y, 6);
+                                enemy.hp--;
+                                if (enemy.hp <= 0) {
+                                    enemy.markedForDeletion = true;
+                                    score += enemy instanceof FineEnemy ? 250 : 150;
+                                    soundManager.playPaperTear();
+                                    spawnPaperTear(enemy.x, enemy.y, 18);
+
+                                    if (Math.random() < 0.22) {
+                                        powerups.push(new GamerPowerup(enemy.x, enemy.y));
+                                    }
+                                    updateHUD();
+                                } else {
+                                    spawnPaperTear(proj.x, proj.y, 5);
+                                }
                             }
                         }
                     });
@@ -1003,24 +1298,23 @@
                         soundManager.playPowerup();
 
                         if (pw.type === 'DELUSION_SHIELD') {
-                            player.shieldActive = true;
+                            player.shieldTimer = player.maxShieldTime;
                         } else if (pw.type === 'MANIA') {
-                            player.speedBoostTimer = 7000;
+                            player.maniaTimer = 7000;
                         } else if (pw.type === 'MEDICAL_WEED') {
-                            player.tripleShotTimer = 7000;
+                            player.weedTimer = 8000;
+                            player.health = Math.min(player.maxHealth, player.health + 25);
                         }
                         updateHUD();
                     }
                 });
 
-                particles.forEach(p => {
-                    p.update();
-                    p.draw();
-                });
+                particles.forEach(p => { p.update(); p.draw(); });
 
-                // Cleanup inactive objects
+                // Clean up inactive entities
                 projectiles = projectiles.filter(p => !p.markedForDeletion);
-                orders = orders.filter(o => !o.markedForDeletion);
+                enemyProjectiles = enemyProjectiles.filter(p => !p.markedForDeletion);
+                enemies = enemies.filter(e => !e.markedForDeletion);
                 powerups = powerups.filter(p => !p.markedForDeletion);
                 particles = particles.filter(p => !p.markedForDeletion);
             }
@@ -1055,7 +1349,7 @@
             gameOverScreen.classList.remove('hidden');
 
             finalScoreText.textContent = score;
-            finalWaveText.textContent = wave;
+            finalTierText.textContent = currentTier;
 
             let isNewHigh = false;
             if (score > highScore) {
