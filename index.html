@@ -103,7 +103,7 @@
         <!-- Controller Status Indicator -->
         <div id="controllerBadge" class="hidden sm:flex items-center space-x-2 bg-indigo-950/80 border border-indigo-500/50 px-3 py-1.5 rounded-full shadow-lg transition-all">
             <span class="animate-pulse">🎮</span>
-            <span id="controllerName" class="text-[10px] font-pixel text-indigo-300 uppercase tracking-wider">GAMEPAD ACTIVE</span>
+            <span id="controllerName" class="text-[10px] font-pixel text-indigo-300 uppercase tracking-wider">GAMEPAD CONNECTED</span>
         </div>
 
         <!-- Health / Ego Integrity Bar -->
@@ -151,7 +151,7 @@
                 </div>
                 <div class="flex justify-between items-center text-gray-200 pt-1 border-t border-white/10">
                     <span class="font-bold text-emerald-400">Powerups:</span>
-                    <span>🛡️ Shield (-1.5s hit penalty) | ⚡ Mania | 🌿 Medical Weed</span>
+                    <span>🛡️ Delusion Shield (-1.5s hit penalty) | ⚡ Mania | 🌿 Medical Weed (+25 Ego)</span>
                 </div>
             </div>
 
@@ -179,7 +179,7 @@
     <!-- Game Over Screen -->
     <div id="gameOverScreen" class="absolute inset-0 flex items-center justify-center z-20 p-4 hidden">
         <div class="glass-panel p-8 sm:p-10 rounded-3xl max-w-md w-full text-center border-2 border-red-500/60">
-            <h2 class="text-3xl sm:text-4xl font-black font-pixel text-red-500 mb-2 glow-text-red">SERVED!</h2>
+            <h2 class="text-3xl sm:text-4xl font-black font-pixel text-red-500 mb-2 glow-text-red">EGO OVERWHELMED!</h2>
             <p class="text-gray-300 text-xs font-pixel uppercase tracking-widest mb-6">The Restraining Orders were enforced!</p>
 
             <div class="bg-black/70 p-5 rounded-2xl border border-white/10 mb-6 space-y-3 font-pixel text-xs">
@@ -213,7 +213,7 @@
             academicBuzzwords: [
                 "ERGO...", "PER SE", "CONSTRUCT", "DISCOURSE", "A PRIORI",
                 "DIALECTIC", "DECONSTRUCT", "PARADIGM", "HERMENEUTICS",
-                "Q.E.D.", "ONTOLOGY", "EPISTEMIC", "LOGOS", "JUXTAPOSE"
+                "Q.E.D.", "ONTOLOGY", "EPISTEMIC", "LOGOS", "JUXTAPOSE", "JUSTIFIED"
             ],
             gamepadDeadzone: 0.18
         };
@@ -225,145 +225,161 @@
             }
 
             init() {
-                if (!this.ctx) {
-                    const AudioContext = window.AudioContext || window.webkitAudioContext;
-                    this.ctx = new AudioContext();
-                }
-                if (this.ctx.state === 'suspended') {
-                    this.ctx.resume();
+                try {
+                    if (!this.ctx) {
+                        const AudioContext = window.AudioContext || window.webkitAudioContext;
+                        if (AudioContext) {
+                            this.ctx = new AudioContext();
+                        }
+                    }
+                    if (this.ctx && this.ctx.state === 'suspended') {
+                        this.ctx.resume().catch(() => {});
+                    }
+                } catch (e) {
+                    console.warn("AudioContext init error:", e);
                 }
             }
 
             playBlaster() {
-                if (!this.ctx || this.isMuted) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
+                if (!this.ctx || this.isMuted || this.ctx.state !== 'running') return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
 
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(220, this.ctx.currentTime + 0.12);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(220, this.ctx.currentTime + 0.12);
 
-                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
 
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
 
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.12);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.12);
+                } catch(e) {}
             }
 
             playEnemyShoot() {
-                if (!this.ctx || this.isMuted) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
+                if (!this.ctx || this.isMuted || this.ctx.state !== 'running') return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
 
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(350, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.1);
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.1);
 
-                gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
 
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
 
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.1);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.1);
+                } catch(e) {}
             }
 
             playPaperTear() {
-                if (!this.ctx || this.isMuted) return;
+                if (!this.ctx || this.isMuted || this.ctx.state !== 'running') return;
+                try {
+                    const dur = 0.18;
+                    const bufferSize = this.ctx.sampleRate * dur;
+                    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
 
-                const dur = 0.18;
-                const bufferSize = this.ctx.sampleRate * dur;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
 
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
+                    const noise = this.ctx.createBufferSource();
+                    noise.buffer = buffer;
 
-                const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.setValueAtTime(1400, this.ctx.currentTime);
+                    filter.Q.setValueAtTime(1.8, this.ctx.currentTime);
 
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = 'bandpass';
-                filter.frequency.setValueAtTime(1400, this.ctx.currentTime);
-                filter.Q.setValueAtTime(1.8, this.ctx.currentTime);
+                    const gain = this.ctx.createGain();
+                    gain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
 
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.22, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.ctx.destination);
 
-                noise.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.ctx.destination);
-
-                noise.start();
-                noise.stop(this.ctx.currentTime + dur);
+                    noise.start();
+                    noise.stop(this.ctx.currentTime + dur);
+                } catch(e) {}
             }
 
             playPowerup() {
-                if (!this.ctx || this.isMuted) return;
+                if (!this.ctx || this.isMuted || this.ctx.state !== 'running') return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
 
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(261.63, now);
+                    osc.frequency.setValueAtTime(329.63, now + 0.07);
+                    osc.frequency.setValueAtTime(392.00, now + 0.14);
+                    osc.frequency.setValueAtTime(523.25, now + 0.21);
 
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(261.63, now);
-                osc.frequency.setValueAtTime(329.63, now + 0.07);
-                osc.frequency.setValueAtTime(392.00, now + 0.14);
-                osc.frequency.setValueAtTime(523.25, now + 0.21);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
 
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
 
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-
-                osc.start();
-                osc.stop(now + 0.3);
+                    osc.start();
+                    osc.stop(now + 0.3);
+                } catch(e) {}
             }
 
             playDeflect() {
-                if (!this.ctx || this.isMuted) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
+                if (!this.ctx || this.isMuted || this.ctx.state !== 'running') return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
 
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.08);
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.08);
 
-                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
 
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
 
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.08);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.08);
+                } catch(e) {}
             }
 
             playGameOver() {
-                if (!this.ctx || this.isMuted) return;
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
+                if (!this.ctx || this.isMuted || this.ctx.state !== 'running') return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
 
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(160, now);
-                osc.frequency.linearRampToValueAtTime(50, now + 0.7);
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(160, now);
+                    osc.frequency.linearRampToValueAtTime(50, now + 0.7);
 
-                gain.gain.setValueAtTime(0.25, now);
-                gain.linearRampToValueAtTime(0.01, now + 0.7);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.linearRampToValueAtTime(0.01, now + 0.7);
 
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
 
-                osc.start();
-                osc.stop(now + 0.7);
+                    osc.start();
+                    osc.stop(now + 0.7);
+                } catch(e) {}
             }
         }
 
@@ -384,12 +400,13 @@
             connectHandler(e) {
                 this.activeGamepadIndex = e.gamepad.index;
                 this.gamepadConnected = true;
-                this.controllerName = e.gamepad.id;
+                this.controllerName = e.gamepad.id || 'Standard Gamepad';
                 this.updateUIBadge(true);
             }
 
             disconnectHandler(e) {
                 if (this.activeGamepadIndex === e.gamepad.index) {
+                    this.stopHaptics();
                     this.activeGamepadIndex = null;
                     this.gamepadConnected = false;
                     this.updateUIBadge(false);
@@ -399,64 +416,83 @@
             updateUIBadge(isConnected) {
                 const badge = document.getElementById('controllerBadge');
                 const nameEl = document.getElementById('controllerName');
-                if (isConnected) {
-                    badge.classList.remove('hidden');
-                    nameEl.textContent = this.controllerName.length > 20 
-                        ? this.controllerName.substring(0, 18) + '...' 
-                        : this.controllerName;
-                } else {
-                    badge.classList.add('hidden');
+                if (badge && nameEl) {
+                    if (isConnected) {
+                        badge.classList.remove('hidden');
+                        nameEl.textContent = this.controllerName.length > 20 
+                            ? this.controllerName.substring(0, 18) + '...' 
+                            : this.controllerName;
+                    } else {
+                        badge.classList.add('hidden');
+                    }
                 }
             }
 
             triggerHaptic(duration = 200, weakMagnitude = 0.5, strongMagnitude = 0.5) {
                 if (!this.gamepadConnected || this.activeGamepadIndex === null) return;
-                const gp = navigator.getGamepads()[this.activeGamepadIndex];
-                if (gp && gp.vibrationActuator) {
-                    gp.vibrationActuator.playEffect('dual-rumble', {
-                        startDelay: 0,
-                        duration: duration,
-                        weakMagnitude: weakMagnitude,
-                        strongMagnitude: strongMagnitude
-                    }).catch(() => {});
-                }
+                try {
+                    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+                    const gp = gamepads[this.activeGamepadIndex];
+                    if (gp && gp.vibrationActuator) {
+                        gp.vibrationActuator.playEffect('dual-rumble', {
+                            startDelay: 0,
+                            duration: duration,
+                            weakMagnitude: weakMagnitude,
+                            strongMagnitude: strongMagnitude
+                        }).catch(() => {});
+                    }
+                } catch(e) {}
+            }
+
+            stopHaptics() {
+                try {
+                    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+                    if (this.activeGamepadIndex !== null && gamepads[this.activeGamepadIndex]) {
+                        const gp = gamepads[this.activeGamepadIndex];
+                        if (gp && gp.vibrationActuator && gp.vibrationActuator.reset) {
+                            gp.vibrationActuator.reset().catch(() => {});
+                        }
+                    }
+                } catch(e) {}
             }
 
             pollInput() {
                 const input = { moveX: 0, moveY: 0, fire: false, startPressed: false };
-                if (this.activeGamepadIndex === null) return input;
+                if (this.activeGamepadIndex === null || !navigator.getGamepads) return input;
 
-                const gamepads = navigator.getGamepads();
-                const gp = gamepads[this.activeGamepadIndex];
-                if (!gp) return input;
+                try {
+                    const gamepads = navigator.getGamepads();
+                    const gp = gamepads[this.activeGamepadIndex];
+                    if (!gp) return input;
 
-                // Left Analog Stick Input
-                let axisX = gp.axes[0] || 0;
-                let axisY = gp.axes[1] || 0;
+                    // Left Analog Stick Input
+                    let axisX = gp.axes[0] || 0;
+                    let axisY = gp.axes[1] || 0;
 
-                if (Math.abs(axisX) > CONFIG.gamepadDeadzone) input.moveX = axisX;
-                if (Math.abs(axisY) > CONFIG.gamepadDeadzone) input.moveY = axisY;
+                    if (Math.abs(axisX) > CONFIG.gamepadDeadzone) input.moveX = axisX;
+                    if (Math.abs(axisY) > CONFIG.gamepadDeadzone) input.moveY = axisY;
 
-                // D-Pad Buttons (Standard Gamepad Mapping)
-                if (gp.buttons[14] && gp.buttons[14].pressed) input.moveX = -1; // D-Left
-                if (gp.buttons[15] && gp.buttons[15].pressed) input.moveX = 1;  // D-Right
-                if (gp.buttons[12] && gp.buttons[12].pressed) input.moveY = -1; // D-Up
-                if (gp.buttons[13] && gp.buttons[13].pressed) input.moveY = 1;  // D-Down
+                    // D-Pad Buttons
+                    if (gp.buttons[14] && gp.buttons[14].pressed) input.moveX = -1; // D-Left
+                    if (gp.buttons[15] && gp.buttons[15].pressed) input.moveX = 1;  // D-Right
+                    if (gp.buttons[12] && gp.buttons[12].pressed) input.moveY = -1; // D-Up
+                    if (gp.buttons[13] && gp.buttons[13].pressed) input.moveY = 1;  // D-Down
 
-                // Firing Buttons: A (0), X (2), Right Bumper (5), Triggers (6, 7)
-                if ((gp.buttons[0] && gp.buttons[0].pressed) || 
-                    (gp.buttons[2] && gp.buttons[2].pressed) || 
-                    (gp.buttons[5] && gp.buttons[5].pressed) || 
-                    (gp.buttons[7] && gp.buttons[7].pressed > 0.1)) {
-                    input.fire = true;
-                }
+                    // Firing Buttons: A (0), X (2), Right Bumper (5), Triggers (6, 7)
+                    if ((gp.buttons[0] && gp.buttons[0].pressed) || 
+                        (gp.buttons[2] && gp.buttons[2].pressed) || 
+                        (gp.buttons[5] && gp.buttons[5].pressed) || 
+                        (gp.buttons[7] && gp.buttons[7].pressed > 0.1)) {
+                        input.fire = true;
+                    }
 
-                // Start / Pause Button (9)
-                const startBtn = gp.buttons[9] && gp.buttons[9].pressed;
-                if (startBtn && !this.lastStartButtonState) {
-                    input.startPressed = true;
-                }
-                this.lastStartButtonState = startBtn;
+                    // Start / Pause Button (9)
+                    const startBtn = gp.buttons[9] && gp.buttons[9].pressed;
+                    if (startBtn && !this.lastStartButtonState) {
+                        input.startPressed = true;
+                    }
+                    this.lastStartButtonState = startBtn;
+                } catch(e) {}
 
                 return input;
             }
@@ -572,7 +608,6 @@
             update(now, delta, gpInput) {
                 const currentSpeed = this.speed;
 
-                // Combined Keyboard & Gamepad movement
                 let moveX = 0;
                 let moveY = 0;
 
@@ -597,7 +632,6 @@
                 this.x = Math.max(this.width / 2, Math.min(canvas.width - this.width / 2, this.x));
                 this.y = Math.max(this.height / 2, Math.min(canvas.height - this.height / 2, this.y));
 
-                // Shoot rate calculation (3x speed in Mania mode)
                 const effectiveDelay = this.maniaTimer > 0 ? this.shootDelay / 3 : this.shootDelay;
                 const shouldFire = keys.Space || touchActive || gpInput.fire;
 
@@ -615,7 +649,6 @@
 
             takeHitDamage(amount) {
                 if (this.shieldTimer > 0) {
-                    // Shield absorbs hit, reducing timer by 1.5 seconds (1500 ms)
                     this.shieldTimer = Math.max(0, this.shieldTimer - 1500);
                     this.damageRingFlash = 1.0;
                     soundManager.playDeflect();
@@ -625,6 +658,7 @@
                     soundManager.playPaperTear();
                     gamepadManager.triggerHaptic(300, 0.8, 0.9);
                     if (this.health <= 0) {
+                        this.health = 0;
                         triggerGameOver();
                     }
                 }
@@ -635,14 +669,12 @@
                 this.lastShot = now;
 
                 if (this.weedTimer > 0) {
-                    // Medical Weed: 5-way green spread shot
                     projectiles.push(new AcademicScreedProjectile(this.x, this.y - 40, 0, -14, '#4ade80'));
                     projectiles.push(new AcademicScreedProjectile(this.x - 20, this.y - 35, -3, -13, '#4ade80'));
                     projectiles.push(new AcademicScreedProjectile(this.x + 20, this.y - 35, 3, -13, '#4ade80'));
                     projectiles.push(new AcademicScreedProjectile(this.x - 35, this.y - 25, -6, -12, '#4ade80'));
                     projectiles.push(new AcademicScreedProjectile(this.x + 35, this.y - 25, 6, -12, '#4ade80'));
                 } else {
-                    // Dual Academic Screeds
                     projectiles.push(new AcademicScreedProjectile(this.x - 14, this.y - 35, 0, -14));
                     projectiles.push(new AcademicScreedProjectile(this.x + 14, this.y - 35, 0, -14));
                 }
@@ -652,19 +684,16 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
 
-                // DELUSION SHIELD RENDERING (Yellow Circular Timer Ring + Orange Damage Ring Burst)
                 if (this.shieldTimer > 0) {
                     const ratio = Math.max(0, this.shieldTimer / this.maxShieldTime);
                     const ringRadius = 56;
 
-                    // Background ring track
                     ctx.beginPath();
                     ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
                     ctx.strokeStyle = 'rgba(234, 179, 8, 0.2)';
                     ctx.lineWidth = 6;
                     ctx.stroke();
 
-                    // Active yellow deplete ring
                     ctx.beginPath();
                     ctx.arc(0, 0, ringRadius, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * ratio));
                     ctx.strokeStyle = '#facc15';
@@ -673,7 +702,6 @@
                     ctx.shadowBlur = 15;
                     ctx.stroke();
 
-                    // Orange Damage Ring Flash on hit impact
                     if (this.damageRingFlash > 0) {
                         ctx.beginPath();
                         ctx.arc(0, 0, ringRadius + 4, 0, Math.PI * 2);
@@ -690,7 +718,6 @@
                     ctx.fillText("DELUSION SHIELD", 0, -66);
                 }
 
-                // Inflated Glowing EGO Orb
                 const egoRadius = 42 + Math.sin(this.egoPulse) * 3.5;
                 const egoGrad = ctx.createRadialGradient(0, 0, 8, 0, 0, egoRadius);
                 egoGrad.addColorStop(0, 'rgba(244, 114, 182, 0.95)');
@@ -704,64 +731,53 @@
                 ctx.arc(0, 0, egoRadius, 0, Math.PI * 2);
                 ctx.fill();
 
-                // EGO Label on Orb Edge
                 ctx.fillStyle = '#fef08a';
                 ctx.font = '8px "Press Start 2P"';
                 ctx.textAlign = 'center';
                 ctx.fillText("EGO", 0, 50);
 
-                // 8-BIT BEBNEY FACE SPRITE
                 ctx.shadowBlur = 0;
                 const p = 2.0;
 
                 ctx.save();
                 ctx.translate(0, -4);
 
-                // Neck / Collar Base
                 ctx.fillStyle = '#1e293b';
                 ctx.fillRect(-6 * p, 11 * p, 12 * p, 4 * p);
 
-                // Face & Jaw Outline
                 ctx.fillStyle = '#fde047';
                 ctx.fillRect(-9 * p, -4 * p, 18 * p, 14 * p);
                 ctx.fillRect(-8 * p, 10 * p, 16 * p, 2 * p);
                 ctx.fillRect(-6 * p, 12 * p, 12 * p, 2 * p);
 
-                // Highlights
                 ctx.fillStyle = '#fef08a';
                 ctx.fillRect(-7 * p, -2 * p, 14 * p, 8 * p);
                 ctx.fillStyle = '#eab308';
                 ctx.fillRect(-9 * p, 4 * p, 2 * p, 6 * p);
                 ctx.fillRect(7 * p, 4 * p, 2 * p, 6 * p);
 
-                // Ears
                 ctx.fillStyle = '#eab308';
                 ctx.fillRect(-10 * p, -1 * p, 1 * p, 4 * p);
                 ctx.fillRect(9 * p, -1 * p, 1 * p, 4 * p);
 
-                // Stubble & Goatee Detail
                 ctx.fillStyle = '#78350f';
                 ctx.fillRect(-5 * p, 8 * p, 10 * p, 5 * p);
                 ctx.fillRect(-3 * p, 6 * p, 6 * p, 2 * p);
                 ctx.fillRect(-8 * p, 5 * p, 3 * p, 5 * p);
                 ctx.fillRect(5 * p, 5 * p, 3 * p, 5 * p);
 
-                // Smirk
                 ctx.fillStyle = '#451a03';
                 ctx.fillRect(-4 * p, 6 * p, 8 * p, 1 * p);
                 ctx.fillRect(4 * p, 5 * p, 2 * p, 1 * p);
 
-                // Nose
                 ctx.fillStyle = '#ca8a04';
                 ctx.fillRect(-1 * p, 1 * p, 3 * p, 4 * p);
                 ctx.fillRect(-2 * p, 4 * p, 5 * p, 1 * p);
 
-                // Eyes
                 ctx.fillStyle = '#1e1b4b';
                 ctx.fillRect(-6 * p, -1 * p, 3 * p, 2 * p);
                 ctx.fillRect(3 * p, -1 * p, 3 * p, 2 * p);
 
-                // Glasses
                 ctx.fillStyle = '#94a3b8';
                 ctx.fillRect(-8 * p, -3 * p, 7 * p, 5 * p);
                 ctx.fillRect(1 * p, -3 * p, 7 * p, 5 * p);
@@ -771,7 +787,6 @@
                 ctx.fillRect(-7 * p, -2 * p, 3 * p, 1 * p);
                 ctx.fillRect(2 * p, -2 * p, 3 * p, 1 * p);
 
-                // Black Baseball Cap
                 ctx.fillStyle = '#0f172a';
                 ctx.fillRect(-10 * p, -13 * p, 20 * p, 9 * p);
                 ctx.fillStyle = '#334155';
@@ -800,7 +815,7 @@
                 this.markedForDeletion = false;
 
                 const words = CONFIG.academicBuzzwords;
-                this.buzzword = words[Math.floor(Math.random() * words.length)];
+                this.buzzword = words[Math.floor(Math.random() * words.length)] || "ERGO";
             }
 
             update() {
@@ -881,7 +896,7 @@
                 this.width = 80;
                 this.height = 48;
                 this.radius = 34;
-                this.x = Math.random() * (canvas.width - this.width - 40) + 20 + this.width / 2;
+                this.x = Math.random() * Math.max(1, canvas.width - this.width - 40) + 20 + this.width / 2;
                 this.y = -this.height - 20;
                 this.speed = Math.random() * 2 + 2.0;
                 this.hp = 2;
@@ -933,7 +948,7 @@
                 this.width = 84;
                 this.height = 50;
                 this.radius = 36;
-                this.x = Math.random() * (canvas.width - this.width - 40) + 20 + this.width / 2;
+                this.x = Math.random() * Math.max(1, canvas.width - this.width - 40) + 20 + this.width / 2;
                 this.y = -this.height - 20;
                 this.speed = Math.random() * 1.8 + 1.8;
                 this.hp = 3;
@@ -949,7 +964,6 @@
                 if (this.canShoot && now - this.lastShot > this.shootInterval && this.y > 40 && this.y < canvas.height - 180) {
                     this.lastShot = now;
                     soundManager.playEnemyShoot();
-                    // Aim Legal Fee ($) towards player position
                     const angle = Math.atan2(player.y - this.y, player.x - this.x);
                     const speed = 5.5;
                     enemyProjectiles.push(new LegalFeeProjectile(this.x, this.y + 20, Math.cos(angle) * speed, Math.sin(angle) * speed));
@@ -994,7 +1008,7 @@
                 this.width = 96;
                 this.height = 54;
                 this.radius = 42;
-                this.x = Math.random() * (canvas.width - this.width - 80) + 40 + this.width / 2;
+                this.x = Math.random() * Math.max(1, canvas.width - this.width - 80) + 40 + this.width / 2;
                 this.y = 70;
                 this.vx = (Math.random() < 0.5 ? 1 : -1) * 3.5;
                 this.invincible = true;
@@ -1013,13 +1027,11 @@
                     this.lastShot = now;
                     soundManager.playEnemyShoot();
                     if (currentTier >= 5) {
-                        // Bullet Hell 4-way stream
                         enemyProjectiles.push(new LegalFeeProjectile(this.x - 20, this.y + 25, -2, 6));
                         enemyProjectiles.push(new LegalFeeProjectile(this.x - 10, this.y + 25, -0.5, 6.5));
                         enemyProjectiles.push(new LegalFeeProjectile(this.x + 10, this.y + 25, 0.5, 6.5));
                         enemyProjectiles.push(new LegalFeeProjectile(this.x + 20, this.y + 25, 2, 6));
                     } else {
-                        // Dual streams down
                         enemyProjectiles.push(new LegalFeeProjectile(this.x - 20, this.y + 25, -1, 6));
                         enemyProjectiles.push(new LegalFeeProjectile(this.x + 20, this.y + 25, 1, 6));
                     }
@@ -1128,7 +1140,7 @@
                 this.x = x;
                 this.y = y;
                 const words = CONFIG.academicBuzzwords;
-                this.word = words[Math.floor(Math.random() * words.length)];
+                this.word = words[Math.floor(Math.random() * words.length)] || "ERGO";
                 const angle = Math.random() * Math.PI * 2;
                 const speed = Math.random() * 4 + 1;
                 this.vx = Math.cos(angle) * speed;
@@ -1287,6 +1299,7 @@
         }
 
         function checkCircleCollision(c1, c2) {
+            if (!c1 || !c2) return false;
             const dx = c1.x - c2.x;
             const dy = c1.y - c2.y;
             return Math.hypot(dx, dy) < (c1.radius + c2.radius);
@@ -1329,9 +1342,11 @@
         }
 
         function updateHUD() {
+            if (!healthPercent || !healthBar) return;
             scoreText.textContent = score;
-            healthPercent.textContent = `${Math.max(0, Math.round(player.health))}%`;
-            healthBar.style.width = `${Math.max(0, player.health)}%`;
+            const hVal = Math.max(0, Math.round(player.health));
+            healthPercent.textContent = `${hVal}%`;
+            healthBar.style.width = `${hVal}%`;
 
             if (player.health < 35) {
                 healthBar.className = "h-full bg-gradient-to-r from-red-600 to-pink-600 rounded transition-all duration-300 w-full";
@@ -1339,7 +1354,6 @@
                 healthBar.className = "h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded transition-all duration-300 w-full";
             }
 
-            // Render active powerup badges
             let buffHTML = '';
             if (player.shieldTimer > 0) buffHTML += `<span>🛡️ ${(player.shieldTimer/1000).toFixed(1)}s</span> `;
             if (player.maniaTimer > 0) buffHTML += `<span>⚡ ${(player.maniaTimer/1000).toFixed(1)}s</span> `;
@@ -1354,11 +1368,12 @@
             const delta = timestamp - lastTimestamp;
             lastTimestamp = timestamp;
 
-            // Poll Gamepad Input frame-by-frame
             const gpInput = gamepadManager.pollInput();
 
             if (gpInput.startPressed) {
-                if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+                if (gameState === 'PLAYING') {
+                    togglePause();
+                } else if (gameState === 'PAUSED') {
                     togglePause();
                 } else if (gameState === 'START' || gameState === 'GAMEOVER') {
                     startGame();
@@ -1370,7 +1385,6 @@
             bgParticles.forEach(p => { p.update(); p.draw(); });
 
             if (gameState === 'PLAYING') {
-                // Tier based enemy spawning
                 const spawnInterval = Math.max(180, 1050 - (currentTier * 160));
                 if (timestamp - lastEnemySpawn > spawnInterval) {
                     lastEnemySpawn = timestamp;
@@ -1384,7 +1398,6 @@
                         if (Math.random() < 0.4) enemies.push(new IVOEnemy());
                         else enemies.push(new FineEnemy());
 
-                        // Spawn Tier 4+ "5-0" Police patrol if none exists
                         if (currentTier >= 4 && !enemies.some(e => e instanceof FiveZeroPoliceEnemy)) {
                             enemies.push(new FiveZeroPoliceEnemy());
                         }
@@ -1399,8 +1412,7 @@
                     ep.update();
                     ep.draw();
 
-                    // Collision enemy projectile -> player
-                    if (checkCircleCollision(player, ep)) {
+                    if (gameState === 'PLAYING' && checkCircleCollision(player, ep)) {
                         ep.markedForDeletion = true;
                         player.takeHitDamage(15);
                         updateHUD();
@@ -1411,15 +1423,13 @@
                     enemy.update(timestamp);
                     enemy.draw();
 
-                    // Collision player <-> enemy body
-                    if (checkCircleCollision(player, enemy)) {
+                    if (gameState === 'PLAYING' && checkCircleCollision(player, enemy)) {
                         if (!enemy.invincible) enemy.markedForDeletion = true;
                         spawnPaperTear(enemy.x, enemy.y, 22);
                         player.takeHitDamage(25);
                         updateHUD();
                     }
 
-                    // Collision player projectile <-> enemy
                     projectiles.forEach(proj => {
                         if (!proj.markedForDeletion && !enemy.markedForDeletion && checkCircleCollision(proj, enemy)) {
                             proj.markedForDeletion = true;
@@ -1454,7 +1464,7 @@
                     pw.update();
                     pw.draw();
 
-                    if (checkCircleCollision(player, pw)) {
+                    if (gameState === 'PLAYING' && checkCircleCollision(player, pw)) {
                         pw.markedForDeletion = true;
                         soundManager.playPowerup();
                         gamepadManager.triggerHaptic(200, 0.6, 0.8);
@@ -1473,7 +1483,7 @@
 
                 particles.forEach(p => { p.update(); p.draw(); });
 
-                // Clean up inactive entities
+                // Clean up inactive entities safely
                 projectiles = projectiles.filter(p => !p.markedForDeletion);
                 enemyProjectiles = enemyProjectiles.filter(p => !p.markedForDeletion);
                 enemies = enemies.filter(e => !e.markedForDeletion);
@@ -1497,6 +1507,7 @@
         function togglePause() {
             if (gameState === 'PLAYING') {
                 gameState = 'PAUSED';
+                gamepadManager.stopHaptics();
                 pauseScreen.classList.remove('hidden');
             } else if (gameState === 'PAUSED') {
                 gameState = 'PLAYING';
@@ -1505,9 +1516,14 @@
         }
 
         function triggerGameOver() {
+            if (gameState === 'GAMEOVER') return;
             gameState = 'GAMEOVER';
+
+            // Stop continuous gamepad vibrations & playing sounds gracefully
+            gamepadManager.stopHaptics();
             soundManager.playGameOver();
             gamepadManager.triggerHaptic(500, 1.0, 1.0);
+
             hud.classList.add('hidden');
             gameOverScreen.classList.remove('hidden');
 
@@ -1517,7 +1533,9 @@
             let isNewHigh = false;
             if (score > highScore) {
                 highScore = score;
-                localStorage.setItem('bebney_high_score', highScore.toString());
+                try {
+                    localStorage.setItem('bebney_high_score', highScore.toString());
+                } catch(e) {}
                 hudHighScore.textContent = highScore;
                 isNewHigh = true;
             }
