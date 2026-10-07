@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bebney Attacks!</title>
+    <!-- Tailwind CSS for UI Overlay -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@600;700;900&display=swap');
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #08030e;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        .font-pixel {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        /* Glassmorphism panel styles */
+        .glass-panel {
+            background: rgba(20, 10, 35, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(236, 72, 153, 0.4);
+            box-shadow: 0 0 35px rgba(219, 39, 119, 0.3);
+        }
+
+        .glow-text-gold {
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 140, 0, 0.5);
+        }
+
+        .glow-text-pink {
+            text-shadow: 0 0 10px rgba(236, 72, 153, 0.8), 0 0 20px rgba(219, 39, 119, 0.5);
+        }
+
+        .glow-text-red {
+            text-shadow: 0 0 10px rgba(255, 0, 60, 0.8), 0 0 20px rgba(255, 0, 0, 0.5);
+        }
+
+        .btn-arcade {
+            background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+            transition: all 0.2s ease;
+            box-shadow: 0 0 20px rgba(236, 72, 153, 0.6);
+            border: 2px solid #fff;
+        }
+
+        .btn-arcade:hover {
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 0 30px rgba(236, 72, 153, 0.9);
+        }
+
+        .btn-arcade:active {
+            transform: translateY(1px) scale(0.98);
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden bg-black">
+
+    <!-- Canvas Game Viewport -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI Overlay Header / HUD -->
+    <div id="hud" class="absolute top-0 left-0 w-full p-4 flex justify-between items-center pointer-events-none z-10 hidden">
+        <div class="flex items-center space-x-4 sm:space-x-6">
+            <div>
+                <div class="text-xs uppercase tracking-widest text-pink-400 font-bold font-pixel text-[10px]">Score</div>
+                <div id="scoreText" class="text-2xl sm:text-3xl font-pixel font-extrabold text-yellow-300 glow-text-gold">0</div>
+            </div>
+            <div>
+                <div class="text-xs uppercase tracking-widest text-purple-400 font-bold font-pixel text-[10px]">Combo</div>
+                <div id="multiplierText" class="text-xl sm:text-2xl font-pixel font-bold text-pink-400">x1</div>
+            </div>
+        </div>
+
+        <!-- Health / Ego Integrity Bar -->
+        <div class="w-40 sm:w-64 bg-gray-900/90 p-2 rounded-xl border-2 border-pink-500/50">
+            <div class="flex justify-between text-[10px] px-1 mb-1 text-pink-300 font-pixel">
+                <span>EGO INTEGRITY</span>
+                <span id="healthPercent">100%</span>
+            </div>
+            <div class="w-full bg-gray-800 h-3 rounded-md overflow-hidden p-0.5 border border-gray-700">
+                <div id="healthBar" class="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded transition-all duration-300 w-full"></div>
+            </div>
+        </div>
+
+        <!-- Top Right High Score -->
+        <div class="text-right">
+            <div class="text-xs uppercase tracking-widest text-red-400 font-bold font-pixel text-[10px]">Best Record</div>
+            <div id="hudHighScore" class="text-xl sm:text-2xl font-pixel font-bold text-red-400">0</div>
+        </div>
+    </div>
+
+    <!-- Start / Main Menu Screen -->
+    <div id="startScreen" class="absolute inset-0 flex items-center justify-center z-20 p-4">
+        <div class="glass-panel p-6 sm:p-10 rounded-3xl max-w-xl w-full text-center">
+            <div class="text-xs font-pixel text-pink-400 tracking-widest uppercase mb-2 animate-bounce">⚡ RETRO 8-BIT ARCADE ⚡</div>
+            <h1 class="text-3xl sm:text-5xl font-black font-pixel tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-400 to-yellow-300 mb-4 glow-text-pink">
+                BEBNEY ATTACKS!
+            </h1>
+            <p class="text-gray-200 mb-6 text-base sm:text-lg font-semibold">
+                Defend your <span class="text-pink-400 font-bold">EGO</span> from incoming <span class="text-red-400 font-bold">Intervention Orders</span>!
+            </p>
+
+            <div class="space-y-3 mb-8 text-left bg-black/70 p-4 rounded-2xl border border-pink-500/30 text-xs sm:text-sm font-medium">
+                <div class="flex justify-between items-center text-gray-200">
+                    <span class="font-bold text-yellow-400">Desktop Controls:</span>
+                    <span>[WASD / Arrow Keys] = Move | [Space] = Fire</span>
+                </div>
+                <div class="flex justify-between items-center text-gray-200">
+                    <span class="font-bold text-pink-400">Touch Controls:</span>
+                    <span>Drag screen to position Bebney & auto-fire</span>
+                </div>
+                <div class="flex justify-between items-center text-gray-200">
+                    <span class="font-bold text-emerald-400">Powerups:</span>
+                    <span>🛡️ Delusion Shield | ⚡ Mania | 🌿 Medical Weed</span>
+                </div>
+            </div>
+
+            <button id="startBtn" class="btn-arcade w-full py-4 text-lg sm:text-2xl font-pixel font-bold text-white uppercase tracking-wider rounded-2xl cursor-pointer">
+                PRESS START TO PLAY
+            </button>
+        </div>
+    </div>
+
+    <!-- Pause Screen -->
+    <div id="pauseScreen" class="absolute inset-0 flex items-center justify-center z-20 p-4 hidden bg-black/70 backdrop-blur-md">
+        <div class="glass-panel p-8 rounded-3xl max-w-md w-full text-center">
+            <h2 class="text-3xl font-bold font-pixel text-yellow-400 mb-6 glow-text-gold">GAME PAUSED</h2>
+            <div class="space-y-4 font-pixel text-sm">
+                <button id="resumeBtn" class="btn-arcade w-full py-4 text-white rounded-xl">
+                    Resume Defense
+                </button>
+                <button id="restartPauseBtn" class="w-full py-4 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-xl border border-gray-600 transition">
+                    Restart Game
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" class="absolute inset-0 flex items-center justify-center z-20 p-4 hidden">
+        <div class="glass-panel p-8 sm:p-10 rounded-3xl max-w-md w-full text-center border-2 border-red-500/60">
+            <h2 class="text-3xl sm:text-4xl font-black font-pixel text-red-500 mb-2 glow-text-red">SERVED!</h2>
+            <p class="text-gray-300 text-xs font-pixel uppercase tracking-widest mb-6">The Restraining Orders were enforced!</p>
+
+            <div class="bg-black/70 p-5 rounded-2xl border border-white/10 mb-6 space-y-3 font-pixel text-xs">
+                <div class="flex justify-between items-center text-gray-400">
+                    <span>Final Score:</span>
+                    <span id="finalScore" class="text-lg text-yellow-300">0</span>
+                </div>
+                <div class="flex justify-between items-center text-gray-400">
+                    <span>Waves Defied:</span>
+                    <span id="finalWave" class="text-base text-pink-400">0</span>
+                </div>
+                <div id="newHighContainer" class="hidden pt-2 border-t border-white/10 text-amber-300 font-bold text-xs tracking-wider animate-pulse">
+                    👑 NEW HIGH SCORE RECORD!
+                </div>
+                <div class="flex justify-between items-center text-gray-400">
+                    <span>Top High Score:</span>
+                    <span id="bestScore" class="text-red-400">0</span>
+                </div>
+            </div>
+
+            <button id="restartBtn" class="btn-arcade w-full py-4 text-lg font-pixel font-bold text-white uppercase tracking-wider rounded-2xl cursor-pointer">
+                TRY AGAIN
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Script Logic -->
+    <script>
+        class SoundManager {
+            constructor() {
+                this.ctx = null;
+                this.isMuted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playBlaster() {
+                if (!this.ctx || this.isMuted) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(580, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.1);
+
+                gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playPaperTear() {
+                if (!this.ctx || this.isMuted) return;
+
+                const dur = 0.18;
+                const bufferSize = this.ctx.sampleRate * dur;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(1400, this.ctx.currentTime);
+                filter.Q.setValueAtTime(1.8, this.ctx.currentTime);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start();
+                noise.stop(this.ctx.currentTime + dur);
+            }
+
+            playPowerup() {
+                if (!this.ctx || this.isMuted) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(261.63, now);
+                osc.frequency.setValueAtTime(329.63, now + 0.07);
+                osc.frequency.setValueAtTime(392.00, now + 0.14);
+                osc.frequency.setValueAtTime(523.25, now + 0.21);
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(now + 0.3);
+            }
+
+            playGameOver() {
+                if (!this.ctx || this.isMuted) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.linearRampToValueAtTime(50, now + 0.7);
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.7);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(now + 0.7);
+            }
+        }
+
+        const soundManager = new SoundManager();
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const hud = document.getElementById('hud');
+        const scoreText = document.getElementById('scoreText');
+        const multiplierText = document.getElementById('multiplierText');
+        const healthBar = document.getElementById('healthBar');
+        const healthPercent = document.getElementById('healthPercent');
+        const hudHighScore = document.getElementById('hudHighScore');
+        const startScreen = document.getElementById('startScreen');
+        const pauseScreen = document.getElementById('pauseScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScoreText = document.getElementById('finalScore');
+        const finalWaveText = document.getElementById('finalWave');
+        const bestScoreText = document.getElementById('bestScore');
+        const newHighContainer = document.getElementById('newHighContainer');
+
+        const startBtn = document.getElementById('startBtn');
+        const resumeBtn = document.getElementById('resumeBtn');
+        const restartPauseBtn = document.getElementById('restartPauseBtn');
+        const restartBtn = document.getElementById('restartBtn');
+
+        let animationId;
+        let gameState = 'START';
+        let score = 0;
+        let wave = 1;
+        let multiplier = 1;
+        let killCount = 0;
+        let highScore = parseInt(localStorage.getItem('bebney_high_score') || '0');
+
+        hudHighScore.textContent = highScore;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const keys = {
+            ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
+            KeyW: false, KeyS: false, KeyA: false, KeyD: false,
+            Space: false
+        };
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyP' || e.code === 'Escape') {
+                togglePause();
+            }
+            if (keys.hasOwnProperty(e.code)) {
+                keys[e.code] = true;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.code)) {
+                keys[e.code] = false;
+            }
+        });
+
+        let touchActive = false;
+        let touchX = 0;
+        let touchY = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (gameState !== 'PLAYING') return;
+            touchActive = true;
+            const touch = e.touches[0];
+            touchX = touch.clientX;
+            touchY = touch.clientY;
+        }, { passive: true });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (gameState !== 'PLAYING') return;
+            const touch = e.touches[0];
+            touchX = touch.clientX;
+            touchY = touch.clientY;
+        }, { passive: true });
+
+        canvas.addEventListener('touchend', () => {
+            touchActive = false;
+        });
+
+        class BebneyPlayer {
+            constructor() {
+                this.width = 84;
+                this.height = 84;
+                this.radius = 42;
+                this.x = canvas.width / 2;
+                this.y = canvas.height - 130;
+                this.speed = 8.5;
+                this.health = 100;
+                this.maxHealth = 100;
+                this.lastShot = 0;
+                this.shootDelay = 150;
+                this.tripleShotTimer = 0;
+                this.shieldActive = false;
+                this.speedBoostTimer = 0;
+                this.egoPulse = 0;
+            }
+
+            update(now) {
+                const currentSpeed = this.speedBoostTimer > 0 ? this.speed * 1.5 : this.speed;
+
+                if (keys.ArrowLeft || keys.KeyA) this.x -= currentSpeed;
+                if (keys.ArrowRight || keys.KeyD) this.x += currentSpeed;
+                if (keys.ArrowUp || keys.KeyW) this.y -= currentSpeed;
+                if (keys.ArrowDown || keys.KeyS) this.y += currentSpeed;
+
+                if (touchActive) {
+                    const dx = touchX - this.x;
+                    const dy = (touchY - 40) - this.y;
+                    this.x += dx * 0.2;
+                    this.y += dy * 0.2;
+                }
+
+                this.x = Math.max(this.width / 2, Math.min(canvas.width - this.width / 2, this.x));
+                this.y = Math.max(this.height / 2, Math.min(canvas.height - this.height / 2, this.y));
+
+                if ((keys.Space || touchActive) && now - this.lastShot > (this.speedBoostTimer > 0 ? 100 : this.shootDelay)) {
+                    this.shoot(now);
+                }
+
+                if (this.tripleShotTimer > 0) this.tripleShotTimer -= 16;
+                if (this.speedBoostTimer > 0) this.speedBoostTimer -= 16;
+                this.egoPulse += 0.06;
+            }
+
+            shoot(now) {
+                soundManager.playBlaster();
+                this.lastShot = now;
+
+                if (this.tripleShotTimer > 0) {
+                    projectiles.push(new SodaCanProjectile(this.x, this.y - 40, 0, -14));
+                    projectiles.push(new SodaCanProjectile(this.x - 22, this.y - 30, -3.5, -13));
+                    projectiles.push(new SodaCanProjectile(this.x + 22, this.y - 30, 3.5, -13));
+                } else {
+                    projectiles.push(new SodaCanProjectile(this.x - 14, this.y - 35, 0, -14));
+                    projectiles.push(new SodaCanProjectile(this.x + 14, this.y - 35, 0, -14));
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Delusion Shield Outer Bubble Effect
+                if (this.shieldActive) {
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 4;
+                    ctx.shadowColor = '#38bdf8';
+                    ctx.shadowBlur = 24;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 56, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#7dd3fc';
+                    ctx.font = '8px "Press Start 2P"';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("DELUSION SHIELD", 0, -64);
+                }
+
+                // Inflated Glowing Pink/Purple EGO Orb
+                const egoRadius = 42 + Math.sin(this.egoPulse) * 3.5;
+                const egoGrad = ctx.createRadialGradient(0, 0, 8, 0, 0, egoRadius);
+                egoGrad.addColorStop(0, 'rgba(244, 114, 182, 0.95)');
+                egoGrad.addColorStop(0.6, 'rgba(192, 132, 252, 0.85)');
+                egoGrad.addColorStop(1, 'rgba(107, 33, 168, 0.7)');
+
+                ctx.shadowColor = '#e879f9';
+                ctx.shadowBlur = 25;
+                ctx.fillStyle = egoGrad;
+                ctx.beginPath();
+                ctx.arc(0, 0, egoRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // EGO Label on Orb Edge
+                ctx.fillStyle = '#fef08a';
+                ctx.font = '8px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText("EGO", 0, 50);
+
+                // HIGH-PRECISION PHOTO-ACCURATE 8-BIT BEBNEY FACE SPRITE
+                ctx.shadowBlur = 0;
+                const p = 2.0; // Pixel grid scaling factor
+
+                ctx.save();
+                ctx.translate(0, -4); // Fine alignment inside orb
+
+                // 1. Neck / Collar Base
+                ctx.fillStyle = '#1e293b'; // Charcoal hoodie collar
+                ctx.fillRect(-6 * p, 11 * p, 12 * p, 4 * p);
+
+                // 2. Face & Jaw Outline / Base Skin
+                ctx.fillStyle = '#fde047'; // Primary warm pixel skin tone
+                ctx.fillRect(-9 * p, -4 * p, 18 * p, 14 * p); // Mid-face
+                ctx.fillRect(-8 * p, 10 * p, 16 * p, 2 * p);  // Lower jaw
+                ctx.fillRect(-6 * p, 12 * p, 12 * p, 2 * p);  // Chin contour
+
+                // Face Highlights & Contours matching portrait
+                ctx.fillStyle = '#fef08a'; // Light skin highlights
+                ctx.fillRect(-7 * p, -2 * p, 14 * p, 8 * p);
+                ctx.fillStyle = '#eab308'; // Shading around jaw and cheeks
+                ctx.fillRect(-9 * p, 4 * p, 2 * p, 6 * p);
+                ctx.fillRect(7 * p, 4 * p, 2 * p, 6 * p);
+
+                // 3. Ears
+                ctx.fillStyle = '#eab308';
+                ctx.fillRect(-10 * p, -1 * p, 1 * p, 4 * p);
+                ctx.fillRect(9 * p, -1 * p, 1 * p, 4 * p);
+
+                // 4. Stubble & Goatee Detail
+                ctx.fillStyle = '#78350f'; // Dark brown stubble tone
+                ctx.fillRect(-5 * p, 8 * p, 10 * p, 5 * p);  // Chin goatee
+                ctx.fillRect(-3 * p, 6 * p, 6 * p, 2 * p);   // Under lip
+                ctx.fillRect(-8 * p, 5 * p, 3 * p, 5 * p);   // Left cheek beard line
+                ctx.fillRect(5 * p, 5 * p, 3 * p, 5 * p);    // Right cheek beard line
+
+                // 5. Confident Smirk / Smile (Matching Photo)
+                ctx.fillStyle = '#451a03'; // Deep smile line
+                ctx.fillRect(-4 * p, 6 * p, 8 * p, 1 * p);   // Lip line
+                ctx.fillRect(4 * p, 5 * p, 2 * p, 1 * p);    // Characteristic right-side smirk curve upwards
+
+                // 6. Nose
+                ctx.fillStyle = '#ca8a04';
+                ctx.fillRect(-1 * p, 1 * p, 3 * p, 4 * p);
+                ctx.fillRect(-2 * p, 4 * p, 5 * p, 1 * p);
+
+                // 7. Eyes Behind Glasses
+                ctx.fillStyle = '#1e1b4b'; // Dark eyes
+                ctx.fillRect(-6 * p, -1 * p, 3 * p, 2 * p);
+                ctx.fillRect(3 * p, -1 * p, 3 * p, 2 * p);
+
+                // 8. Translucent Frame Glasses & Highlights
+                ctx.fillStyle = '#94a3b8'; // Metal translucent frame outline
+                ctx.fillRect(-8 * p, -3 * p, 7 * p, 5 * p);
+                ctx.fillRect(1 * p, -3 * p, 7 * p, 5 * p);
+                ctx.fillRect(-1 * p, -2 * p, 2 * p, 1 * p); // Nose bridge
+
+                ctx.fillStyle = '#f8fafc'; // White glass glare reflection
+                ctx.fillRect(-7 * p, -2 * p, 3 * p, 1 * p);
+                ctx.fillRect(2 * p, -2 * p, 3 * p, 1 * p);
+
+                // 9. Black Baseball Cap (Angled down with visor shade)
+                ctx.fillStyle = '#0f172a'; // Cap crown
+                ctx.fillRect(-10 * p, -13 * p, 20 * p, 9 * p);
+                ctx.fillStyle = '#334155'; // Cap highlight
+                ctx.fillRect(-9 * p, -12 * p, 18 * p, 2 * p);
+
+                // Cap Visor / Curved Brim
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(-12 * p, -5 * p, 24 * p, 2 * p);
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(-11 * p, -4 * p, 22 * p, 1 * p);
+
+                ctx.restore();
+                ctx.restore();
+            }
+        }
+
+        class SodaCanProjectile {
+            constructor(x, y, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.radius = 8;
+                this.markedForDeletion = false;
+                this.rotation = 0;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.rotation += 0.2;
+                if (this.y < -30 || this.x < -30 || this.x > canvas.width + 30) {
+                    this.markedForDeletion = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                ctx.shadowColor = '#ef4444';
+                ctx.shadowBlur = 10;
+
+                // Red Soda Can Body
+                ctx.fillStyle = '#dc2626';
+                ctx.fillRect(-6, -9, 12, 18);
+
+                // Metallic top/bottom
+                ctx.fillStyle = '#e5e7eb';
+                ctx.fillRect(-6, -11, 12, 2);
+                ctx.fillRect(-6, 9, 12, 2);
+
+                // White Stripe
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(-6, -2, 12, 5);
+
+                ctx.restore();
+            }
+        }
+
+        class InterventionOrderEnemy {
+            constructor() {
+                this.width = 84;
+                this.height = 52;
+                this.radius = 36;
+                this.x = Math.random() * (canvas.width - this.width - 40) + 20 + this.width / 2;
+                this.y = -this.height - 20;
+                this.speed = Math.random() * 2 + 1.8 + (wave * 0.25);
+                this.markedForDeletion = false;
+
+                const legalTitles = [
+                    "INTERVENTION ORDER",
+                    "RESTRAINING NOTICE",
+                    "STOP ORDER",
+                    "COURT SUMMONS"
+                ];
+                this.title = legalTitles[Math.floor(Math.random() * legalTitles.length)];
+                this.hp = this.title.includes("RESTRAINING") ? 3 : 2;
+                this.wobbleAngle = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                this.y += this.speed;
+                this.wobbleAngle += 0.05;
+                this.x += Math.sin(this.wobbleAngle) * 1.3;
+
+                if (this.y > canvas.height + this.height) {
+                    this.markedForDeletion = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                ctx.fillStyle = '#fffbe2';
+                ctx.strokeStyle = '#dc2626';
+                ctx.lineWidth = 2.5;
+
+                ctx.shadowColor = 'rgba(220, 38, 38, 0.4)';
+                ctx.shadowBlur = 10;
+
+                // Paper background
+                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+                ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
+
+                // Header Banner
+                ctx.fillStyle = '#dc2626';
+                ctx.fillRect(-this.width / 2 + 4, -this.height / 2 + 4, this.width - 8, 12);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 7px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText("OFFICIAL NOTICE", 0, -this.height / 2 + 13);
+
+                // Main Title
+                ctx.fillStyle = '#111827';
+                ctx.font = 'bold 7px sans-serif';
+                ctx.fillText(this.title, 0, 5);
+
+                // Legal Document Lines
+                ctx.strokeStyle = '#9ca3af';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(-28, 14); ctx.lineTo(28, 14);
+                ctx.moveTo(-22, 18); ctx.lineTo(22, 18);
+                ctx.stroke();
+
+                // Red Official Stamp
+                ctx.save();
+                ctx.rotate(-0.2);
+                ctx.strokeStyle = '#b91c1c';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(-24, -6, 48, 15);
+                ctx.fillStyle = '#b91c1c';
+                ctx.font = 'bold 8px sans-serif';
+                ctx.fillText("ENFORCED", 0, 5);
+                ctx.restore();
+
+                ctx.restore();
+            }
+        }
+
+        class GamerPowerup {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 16;
+                this.vy = 2.2;
+                this.markedForDeletion = false;
+
+                const types = ['DELUSION_SHIELD', 'MANIA', 'MEDICAL_WEED'];
+                this.type = types[Math.floor(Math.random() * types.length)];
+            }
+
+            update() {
+                this.y += this.vy;
+                if (this.y > canvas.height + 30) this.markedForDeletion = true;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                if (this.type === 'DELUSION_SHIELD') {
+                    ctx.shadowColor = '#38bdf8';
+                    ctx.shadowBlur = 14;
+                    ctx.fillStyle = '#0284c7';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 8px "Press Start 2P"';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("DS", 0, 3);
+                } else if (this.type === 'MANIA') {
+                    ctx.shadowColor = '#eab308';
+                    ctx.shadowBlur = 14;
+                    ctx.fillStyle = '#ca8a04';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#fef08a';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("⚡", 0, 4);
+                } else { // MEDICAL WEED
+                    ctx.shadowColor = '#22c55e';
+                    ctx.shadowBlur = 14;
+                    ctx.fillStyle = '#15803d';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#86efac';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("🌿", 0, 4);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class PaperParticle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color || '#fffbe2';
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 1.8;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.rotation = Math.random() * Math.PI;
+                this.rotSpeed = (Math.random() - 0.5) * 0.25;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.035 + 0.025;
+                this.width = Math.random() * 7 + 4;
+                this.height = Math.random() * 9 + 4;
+                this.markedForDeletion = false;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.rotation += this.rotSpeed;
+                this.alpha -= this.decay;
+                if (this.alpha <= 0) {
+                    this.markedForDeletion = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+                ctx.restore();
+            }
+        }
+
+        class StarParticle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 0.5;
+                this.speed = Math.random() * 2 + 0.5;
+            }
+            update() {
+                this.y += this.speed;
+                if (this.y > canvas.height) {
+                    this.y = 0;
+                    this.x = Math.random() * canvas.width;
+                }
+            }
+            draw() {
+                ctx.fillStyle = 'rgba(236, 72, 153, 0.3)';
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+            }
+        }
+
+        let bgParticles = [];
+        let player = new BebneyPlayer();
+        let projectiles = [];
+        let orders = [];
+        let powerups = [];
+        let particles = [];
+        let lastOrderSpawn = 0;
+
+        function initBackground() {
+            bgParticles = [];
+            for (let i = 0; i < 90; i++) {
+                bgParticles.push(new StarParticle());
+            }
+        }
+        initBackground();
+
+        function spawnPaperTear(x, y, count = 18) {
+            const colors = ['#fffbe2', '#dc2626', '#b91c1c', '#fef08a'];
+            for (let i = 0; i < count; i++) {
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                particles.push(new PaperParticle(x, y, color));
+            }
+        }
+
+        function checkCircleCollision(c1, c2) {
+            const dx = c1.x - c2.x;
+            const dy = c1.y - c2.y;
+            return Math.hypot(dx, dy) < (c1.radius + c2.radius);
+        }
+
+        function resetGame() {
+            score = 0;
+            wave = 1;
+            multiplier = 1;
+            killCount = 0;
+            player = new BebneyPlayer();
+            projectiles = [];
+            orders = [];
+            powerups = [];
+            particles = [];
+            updateHUD();
+        }
+
+        function updateHUD() {
+            scoreText.textContent = score;
+            multiplierText.textContent = `x${multiplier}`;
+            healthPercent.textContent = `${Math.max(0, Math.round(player.health))}%`;
+            healthBar.style.width = `${Math.max(0, player.health)}%`;
+
+            if (player.health < 35) {
+                healthBar.className = "h-full bg-gradient-to-r from-red-600 to-pink-600 rounded transition-all duration-300 w-full";
+            } else {
+                healthBar.className = "h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded transition-all duration-300 w-full";
+            }
+        }
+
+        function gameLoop(timestamp) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            bgParticles.forEach(p => { p.update(); p.draw(); });
+
+            if (gameState === 'PLAYING') {
+                const spawnInterval = Math.max(340, 1050 - (wave * 85));
+                if (timestamp - lastOrderSpawn > spawnInterval) {
+                    orders.push(new InterventionOrderEnemy());
+                    lastOrderSpawn = timestamp;
+                }
+
+                player.update(timestamp);
+                player.draw();
+
+                projectiles.forEach(p => {
+                    p.update();
+                    p.draw();
+                });
+
+                orders.forEach(order => {
+                    order.update();
+                    order.draw();
+
+                    // Collision player <-> order
+                    if (checkCircleCollision(player, order)) {
+                        order.markedForDeletion = true;
+                        spawnPaperTear(order.x, order.y, 22);
+
+                        if (player.shieldActive) {
+                            player.shieldActive = false;
+                            soundManager.playPaperTear();
+                        } else {
+                            player.health -= 25;
+                            multiplier = 1;
+                            soundManager.playPaperTear();
+                            updateHUD();
+
+                            if (player.health <= 0) {
+                                triggerGameOver();
+                            }
+                        }
+                    }
+
+                    // Collision projectile <-> order
+                    projectiles.forEach(proj => {
+                        if (!proj.markedForDeletion && !order.markedForDeletion && checkCircleCollision(proj, order)) {
+                            proj.markedForDeletion = true;
+                            order.hp--;
+
+                            if (order.hp <= 0) {
+                                order.markedForDeletion = true;
+                                killCount++;
+                                score += 100 * multiplier;
+                                soundManager.playPaperTear();
+                                spawnPaperTear(order.x, order.y, 18);
+
+                                if (killCount % 8 === 0) {
+                                    wave++;
+                                    multiplier++;
+                                }
+
+                                if (Math.random() < 0.25) {
+                                    powerups.push(new GamerPowerup(order.x, order.y));
+                                }
+
+                                updateHUD();
+                            } else {
+                                spawnPaperTear(proj.x, proj.y, 6);
+                            }
+                        }
+                    });
+                });
+
+                powerups.forEach(pw => {
+                    pw.update();
+                    pw.draw();
+
+                    if (checkCircleCollision(player, pw)) {
+                        pw.markedForDeletion = true;
+                        soundManager.playPowerup();
+
+                        if (pw.type === 'DELUSION_SHIELD') {
+                            player.shieldActive = true;
+                        } else if (pw.type === 'MANIA') {
+                            player.speedBoostTimer = 7000;
+                        } else if (pw.type === 'MEDICAL_WEED') {
+                            player.tripleShotTimer = 7000;
+                        }
+                        updateHUD();
+                    }
+                });
+
+                particles.forEach(p => {
+                    p.update();
+                    p.draw();
+                });
+
+                // Cleanup inactive objects
+                projectiles = projectiles.filter(p => !p.markedForDeletion);
+                orders = orders.filter(o => !o.markedForDeletion);
+                powerups = powerups.filter(p => !p.markedForDeletion);
+                particles = particles.filter(p => !p.markedForDeletion);
+            }
+
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            soundManager.init();
+            resetGame();
+            gameState = 'PLAYING';
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            pauseScreen.classList.add('hidden');
+            hud.classList.remove('hidden');
+        }
+
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                pauseScreen.classList.remove('hidden');
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                pauseScreen.classList.add('hidden');
+            }
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            soundManager.playGameOver();
+            hud.classList.add('hidden');
+            gameOverScreen.classList.remove('hidden');
+
+            finalScoreText.textContent = score;
+            finalWaveText.textContent = wave;
+
+            let isNewHigh = false;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('bebney_high_score', highScore.toString());
+                hudHighScore.textContent = highScore;
+                isNewHigh = true;
+            }
+
+            bestScoreText.textContent = highScore;
+
+            if (isNewHigh && score > 0) {
+                newHighContainer.classList.remove('hidden');
+            } else {
+                newHighContainer.classList.add('hidden');
+            }
+        }
+
+        startBtn.addEventListener('click', startGame);
+        resumeBtn.addEventListener('click', togglePause);
+        restartPauseBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        window.onload = () => {
+            animationId = requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
