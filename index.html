@@ -67,9 +67,22 @@
             width: 100vw;
             height: 100vh;
         }
+
+        /* CRT Scanline effect overlay */
+        .crt::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0.6;
+        }
     </style>
 </head>
-<body class="relative w-screen h-screen overflow-hidden bg-black">
+<body class="relative w-screen h-screen overflow-hidden bg-black crt">
 
     <!-- Canvas Game Viewport -->
     <canvas id="gameCanvas"></canvas>
@@ -85,6 +98,12 @@
                 <div class="text-xs uppercase tracking-widest text-purple-400 font-bold font-pixel text-[10px]">Status</div>
                 <div id="tierText" class="text-xs sm:text-sm font-pixel font-bold text-pink-400">Tier 1: IVO Swarm</div>
             </div>
+        </div>
+
+        <!-- Controller Status Indicator -->
+        <div id="controllerBadge" class="hidden sm:flex items-center space-x-2 bg-indigo-950/80 border border-indigo-500/50 px-3 py-1.5 rounded-full shadow-lg transition-all">
+            <span class="animate-pulse">🎮</span>
+            <span id="controllerName" class="text-[10px] font-pixel text-indigo-300 uppercase tracking-wider">GAMEPAD ACTIVE</span>
         </div>
 
         <!-- Health / Ego Integrity Bar -->
@@ -109,7 +128,7 @@
     <!-- Start / Main Menu Screen -->
     <div id="startScreen" class="absolute inset-0 flex items-center justify-center z-20 p-4">
         <div class="glass-panel p-6 sm:p-10 rounded-3xl max-w-xl w-full text-center">
-            <div class="text-xs font-pixel text-pink-400 tracking-widest uppercase mb-2 animate-bounce">⚡ RETRO 8-BIT ARCADE ⚡</div>
+            <div class="text-xs font-pixel text-pink-400 tracking-widest uppercase mb-2 animate-bounce">⚡ RETRO 8-BIT BULLET HELL ⚡</div>
             <h1 class="text-3xl sm:text-5xl font-black font-pixel tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-400 to-yellow-300 mb-4 glow-text-pink">
                 BEBNEY ATTACKS!
             </h1>
@@ -117,23 +136,27 @@
                 Fire long-winded <span class="text-yellow-300 font-bold">Academic Screeds</span> to destroy <span class="text-red-400 font-bold">IVO Notices, Fines & 5-0 Patrols</span>!
             </p>
 
-            <div class="space-y-3 mb-8 text-left bg-black/70 p-4 rounded-2xl border border-pink-500/30 text-xs sm:text-sm font-medium">
+            <div class="space-y-2 mb-8 text-left bg-black/70 p-4 rounded-2xl border border-pink-500/30 text-xs sm:text-sm font-medium">
                 <div class="flex justify-between items-center text-gray-200">
-                    <span class="font-bold text-yellow-400">Desktop Controls:</span>
-                    <span>[WASD / Arrow Keys] Move | [Space] Fire Screed</span>
+                    <span class="font-bold text-yellow-400">Keyboard:</span>
+                    <span>[WASD / Arrows] Move | [Space] Fire | [P] Pause</span>
+                </div>
+                <div class="flex justify-between items-center text-gray-200">
+                    <span class="font-bold text-indigo-400">Gamepad:</span>
+                    <span>[Left Stick / D-Pad] Move | [A / X / Triggers] Fire</span>
                 </div>
                 <div class="flex justify-between items-center text-gray-200">
                     <span class="font-bold text-pink-400">Touch Controls:</span>
-                    <span>Drag screen to position Bebney & auto-fire</span>
+                    <span>Drag screen to move Bebney & auto-fire</span>
                 </div>
-                <div class="flex justify-between items-center text-gray-200">
+                <div class="flex justify-between items-center text-gray-200 pt-1 border-t border-white/10">
                     <span class="font-bold text-emerald-400">Powerups:</span>
-                    <span>🛡️ Delusion Shield | ⚡ Mania | 🌿 Medical Weed</span>
+                    <span>🛡️ Shield (-1.5s hit penalty) | ⚡ Mania | 🌿 Medical Weed</span>
                 </div>
             </div>
 
             <button id="startBtn" class="btn-arcade w-full py-4 text-lg sm:text-2xl font-pixel font-bold text-white uppercase tracking-wider rounded-2xl cursor-pointer">
-                PRESS START TO PLAY
+                PRESS START / A BUTTON
             </button>
         </div>
     </div>
@@ -178,13 +201,23 @@
             </div>
 
             <button id="restartBtn" class="btn-arcade w-full py-4 text-lg font-pixel font-bold text-white uppercase tracking-wider rounded-2xl cursor-pointer">
-                TRY AGAIN
+                TRY AGAIN [PRESS A]
             </button>
         </div>
     </div>
 
     <!-- Game Script Logic -->
     <script>
+        // Game Configuration & Customization Dictionary
+        const CONFIG = {
+            academicBuzzwords: [
+                "ERGO...", "PER SE", "CONSTRUCT", "DISCOURSE", "A PRIORI",
+                "DIALECTIC", "DECONSTRUCT", "PARADIGM", "HERMENEUTICS",
+                "Q.E.D.", "ONTOLOGY", "EPISTEMIC", "LOGOS", "JUXTAPOSE"
+            ],
+            gamepadDeadzone: 0.18
+        };
+
         class SoundManager {
             constructor() {
                 this.ctx = null;
@@ -324,7 +357,7 @@
                 osc.frequency.linearRampToValueAtTime(50, now + 0.7);
 
                 gain.gain.setValueAtTime(0.25, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.7);
+                gain.linearRampToValueAtTime(0.01, now + 0.7);
 
                 osc.connect(gain);
                 gain.connect(this.ctx.destination);
@@ -335,6 +368,101 @@
         }
 
         const soundManager = new SoundManager();
+
+        // Gamepad API & Vibration Manager
+        class GamepadManager {
+            constructor() {
+                this.activeGamepadIndex = null;
+                this.gamepadConnected = false;
+                this.controllerName = '';
+                this.lastStartButtonState = false;
+                
+                window.addEventListener('gamepadconnected', (e) => this.connectHandler(e));
+                window.addEventListener('gamepaddisconnected', (e) => this.disconnectHandler(e));
+            }
+
+            connectHandler(e) {
+                this.activeGamepadIndex = e.gamepad.index;
+                this.gamepadConnected = true;
+                this.controllerName = e.gamepad.id;
+                this.updateUIBadge(true);
+            }
+
+            disconnectHandler(e) {
+                if (this.activeGamepadIndex === e.gamepad.index) {
+                    this.activeGamepadIndex = null;
+                    this.gamepadConnected = false;
+                    this.updateUIBadge(false);
+                }
+            }
+
+            updateUIBadge(isConnected) {
+                const badge = document.getElementById('controllerBadge');
+                const nameEl = document.getElementById('controllerName');
+                if (isConnected) {
+                    badge.classList.remove('hidden');
+                    nameEl.textContent = this.controllerName.length > 20 
+                        ? this.controllerName.substring(0, 18) + '...' 
+                        : this.controllerName;
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+
+            triggerHaptic(duration = 200, weakMagnitude = 0.5, strongMagnitude = 0.5) {
+                if (!this.gamepadConnected || this.activeGamepadIndex === null) return;
+                const gp = navigator.getGamepads()[this.activeGamepadIndex];
+                if (gp && gp.vibrationActuator) {
+                    gp.vibrationActuator.playEffect('dual-rumble', {
+                        startDelay: 0,
+                        duration: duration,
+                        weakMagnitude: weakMagnitude,
+                        strongMagnitude: strongMagnitude
+                    }).catch(() => {});
+                }
+            }
+
+            pollInput() {
+                const input = { moveX: 0, moveY: 0, fire: false, startPressed: false };
+                if (this.activeGamepadIndex === null) return input;
+
+                const gamepads = navigator.getGamepads();
+                const gp = gamepads[this.activeGamepadIndex];
+                if (!gp) return input;
+
+                // Left Analog Stick Input
+                let axisX = gp.axes[0] || 0;
+                let axisY = gp.axes[1] || 0;
+
+                if (Math.abs(axisX) > CONFIG.gamepadDeadzone) input.moveX = axisX;
+                if (Math.abs(axisY) > CONFIG.gamepadDeadzone) input.moveY = axisY;
+
+                // D-Pad Buttons (Standard Gamepad Mapping)
+                if (gp.buttons[14] && gp.buttons[14].pressed) input.moveX = -1; // D-Left
+                if (gp.buttons[15] && gp.buttons[15].pressed) input.moveX = 1;  // D-Right
+                if (gp.buttons[12] && gp.buttons[12].pressed) input.moveY = -1; // D-Up
+                if (gp.buttons[13] && gp.buttons[13].pressed) input.moveY = 1;  // D-Down
+
+                // Firing Buttons: A (0), X (2), Right Bumper (5), Triggers (6, 7)
+                if ((gp.buttons[0] && gp.buttons[0].pressed) || 
+                    (gp.buttons[2] && gp.buttons[2].pressed) || 
+                    (gp.buttons[5] && gp.buttons[5].pressed) || 
+                    (gp.buttons[7] && gp.buttons[7].pressed > 0.1)) {
+                    input.fire = true;
+                }
+
+                // Start / Pause Button (9)
+                const startBtn = gp.buttons[9] && gp.buttons[9].pressed;
+                if (startBtn && !this.lastStartButtonState) {
+                    input.startPressed = true;
+                }
+                this.lastStartButtonState = startBtn;
+
+                return input;
+            }
+        }
+
+        const gamepadManager = new GamepadManager();
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -441,13 +569,23 @@
                 this.egoPulse = 0;
             }
 
-            update(now, delta) {
+            update(now, delta, gpInput) {
                 const currentSpeed = this.speed;
 
-                if (keys.ArrowLeft || keys.KeyA) this.x -= currentSpeed;
-                if (keys.ArrowRight || keys.KeyD) this.x += currentSpeed;
-                if (keys.ArrowUp || keys.KeyW) this.y -= currentSpeed;
-                if (keys.ArrowDown || keys.KeyS) this.y += currentSpeed;
+                // Combined Keyboard & Gamepad movement
+                let moveX = 0;
+                let moveY = 0;
+
+                if (keys.ArrowLeft || keys.KeyA) moveX -= 1;
+                if (keys.ArrowRight || keys.KeyD) moveX += 1;
+                if (keys.ArrowUp || keys.KeyW) moveY -= 1;
+                if (keys.ArrowDown || keys.KeyS) moveY += 1;
+
+                if (gpInput.moveX !== 0) moveX = gpInput.moveX;
+                if (gpInput.moveY !== 0) moveY = gpInput.moveY;
+
+                this.x += moveX * currentSpeed;
+                this.y += moveY * currentSpeed;
 
                 if (touchActive) {
                     const dx = touchX - this.x;
@@ -461,8 +599,9 @@
 
                 // Shoot rate calculation (3x speed in Mania mode)
                 const effectiveDelay = this.maniaTimer > 0 ? this.shootDelay / 3 : this.shootDelay;
+                const shouldFire = keys.Space || touchActive || gpInput.fire;
 
-                if ((keys.Space || touchActive) && now - this.lastShot > effectiveDelay) {
+                if (shouldFire && now - this.lastShot > effectiveDelay) {
                     this.shoot(now);
                 }
 
@@ -480,9 +619,11 @@
                     this.shieldTimer = Math.max(0, this.shieldTimer - 1500);
                     this.damageRingFlash = 1.0;
                     soundManager.playDeflect();
+                    gamepadManager.triggerHaptic(120, 0.4, 0.7);
                 } else {
                     this.health -= amount;
                     soundManager.playPaperTear();
+                    gamepadManager.triggerHaptic(300, 0.8, 0.9);
                     if (this.health <= 0) {
                         triggerGameOver();
                     }
@@ -576,11 +717,11 @@
                 ctx.save();
                 ctx.translate(0, -4);
 
-                // 1. Neck / Collar Base
+                // Neck / Collar Base
                 ctx.fillStyle = '#1e293b';
                 ctx.fillRect(-6 * p, 11 * p, 12 * p, 4 * p);
 
-                // 2. Face & Jaw Outline
+                // Face & Jaw Outline
                 ctx.fillStyle = '#fde047';
                 ctx.fillRect(-9 * p, -4 * p, 18 * p, 14 * p);
                 ctx.fillRect(-8 * p, 10 * p, 16 * p, 2 * p);
@@ -593,34 +734,34 @@
                 ctx.fillRect(-9 * p, 4 * p, 2 * p, 6 * p);
                 ctx.fillRect(7 * p, 4 * p, 2 * p, 6 * p);
 
-                // 3. Ears
+                // Ears
                 ctx.fillStyle = '#eab308';
                 ctx.fillRect(-10 * p, -1 * p, 1 * p, 4 * p);
                 ctx.fillRect(9 * p, -1 * p, 1 * p, 4 * p);
 
-                // 4. Stubble & Goatee Detail
+                // Stubble & Goatee Detail
                 ctx.fillStyle = '#78350f';
                 ctx.fillRect(-5 * p, 8 * p, 10 * p, 5 * p);
                 ctx.fillRect(-3 * p, 6 * p, 6 * p, 2 * p);
                 ctx.fillRect(-8 * p, 5 * p, 3 * p, 5 * p);
                 ctx.fillRect(5 * p, 5 * p, 3 * p, 5 * p);
 
-                // 5. Smirk
+                // Smirk
                 ctx.fillStyle = '#451a03';
                 ctx.fillRect(-4 * p, 6 * p, 8 * p, 1 * p);
                 ctx.fillRect(4 * p, 5 * p, 2 * p, 1 * p);
 
-                // 6. Nose
+                // Nose
                 ctx.fillStyle = '#ca8a04';
                 ctx.fillRect(-1 * p, 1 * p, 3 * p, 4 * p);
                 ctx.fillRect(-2 * p, 4 * p, 5 * p, 1 * p);
 
-                // 7. Eyes
+                // Eyes
                 ctx.fillStyle = '#1e1b4b';
                 ctx.fillRect(-6 * p, -1 * p, 3 * p, 2 * p);
                 ctx.fillRect(3 * p, -1 * p, 3 * p, 2 * p);
 
-                // 8. Glasses
+                // Glasses
                 ctx.fillStyle = '#94a3b8';
                 ctx.fillRect(-8 * p, -3 * p, 7 * p, 5 * p);
                 ctx.fillRect(1 * p, -3 * p, 7 * p, 5 * p);
@@ -630,7 +771,7 @@
                 ctx.fillRect(-7 * p, -2 * p, 3 * p, 1 * p);
                 ctx.fillRect(2 * p, -2 * p, 3 * p, 1 * p);
 
-                // 9. Black Baseball Cap
+                // Black Baseball Cap
                 ctx.fillStyle = '#0f172a';
                 ctx.fillRect(-10 * p, -13 * p, 20 * p, 9 * p);
                 ctx.fillStyle = '#334155';
@@ -658,8 +799,8 @@
                 this.height = 30;
                 this.markedForDeletion = false;
 
-                const buzzwords = ["ERGO...", "PER SE", "CONSTRUCT", "DISCOURSE", "DIALECTIC", "JUSTIFIED"];
-                this.buzzword = buzzwords[Math.floor(Math.random() * buzzwords.length)];
+                const words = CONFIG.academicBuzzwords;
+                this.buzzword = words[Math.floor(Math.random() * words.length)];
             }
 
             update() {
@@ -798,7 +939,7 @@
                 this.hp = 3;
                 this.canShoot = currentTier >= 3;
                 this.lastShot = 0;
-                this.shootInterval = 2200 - Math.min(1000, (score - 10000) * 0.05);
+                this.shootInterval = Math.max(900, 2200 - Math.min(1300, (score - 10000) * 0.05));
                 this.markedForDeletion = false;
             }
 
@@ -842,7 +983,7 @@
 
                 ctx.fillStyle = '#b45309';
                 ctx.font = 'bold 12px sans-serif';
-                ctx.fillText("$$$ DUE $$$", 0, 8);
+                ctx.fillText("$500 OVERDUE", 0, 8);
 
                 ctx.restore();
             }
@@ -858,7 +999,7 @@
                 this.vx = (Math.random() < 0.5 ? 1 : -1) * 3.5;
                 this.invincible = true;
                 this.lastShot = 0;
-                this.shootInterval = 1400;
+                this.shootInterval = currentTier >= 5 ? 700 : 1300;
                 this.markedForDeletion = false;
             }
 
@@ -871,9 +1012,17 @@
                 if (now - this.lastShot > this.shootInterval) {
                     this.lastShot = now;
                     soundManager.playEnemyShoot();
-                    // Dual streams down
-                    enemyProjectiles.push(new LegalFeeProjectile(this.x - 20, this.y + 25, -1, 6));
-                    enemyProjectiles.push(new LegalFeeProjectile(this.x + 20, this.y + 25, 1, 6));
+                    if (currentTier >= 5) {
+                        // Bullet Hell 4-way stream
+                        enemyProjectiles.push(new LegalFeeProjectile(this.x - 20, this.y + 25, -2, 6));
+                        enemyProjectiles.push(new LegalFeeProjectile(this.x - 10, this.y + 25, -0.5, 6.5));
+                        enemyProjectiles.push(new LegalFeeProjectile(this.x + 10, this.y + 25, 0.5, 6.5));
+                        enemyProjectiles.push(new LegalFeeProjectile(this.x + 20, this.y + 25, 2, 6));
+                    } else {
+                        // Dual streams down
+                        enemyProjectiles.push(new LegalFeeProjectile(this.x - 20, this.y + 25, -1, 6));
+                        enemyProjectiles.push(new LegalFeeProjectile(this.x + 20, this.y + 25, 1, 6));
+                    }
                 }
             }
 
@@ -978,7 +1127,7 @@
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                const words = ["ERGO", "PER SE", "CONSTRUCT", "JUSTIFIED", "DIALECTIC", "LOGIC"];
+                const words = CONFIG.academicBuzzwords;
                 this.word = words[Math.floor(Math.random() * words.length)];
                 const angle = Math.random() * Math.PI * 2;
                 const speed = Math.random() * 4 + 1;
@@ -1205,13 +1354,24 @@
             const delta = timestamp - lastTimestamp;
             lastTimestamp = timestamp;
 
+            // Poll Gamepad Input frame-by-frame
+            const gpInput = gamepadManager.pollInput();
+
+            if (gpInput.startPressed) {
+                if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+                    togglePause();
+                } else if (gameState === 'START' || gameState === 'GAMEOVER') {
+                    startGame();
+                }
+            }
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             bgParticles.forEach(p => { p.update(); p.draw(); });
 
             if (gameState === 'PLAYING') {
                 // Tier based enemy spawning
-                const spawnInterval = Math.max(280, 1050 - (currentTier * 140));
+                const spawnInterval = Math.max(180, 1050 - (currentTier * 160));
                 if (timestamp - lastEnemySpawn > spawnInterval) {
                     lastEnemySpawn = timestamp;
 
@@ -1224,14 +1384,14 @@
                         if (Math.random() < 0.4) enemies.push(new IVOEnemy());
                         else enemies.push(new FineEnemy());
 
-                        // Spawn Tier 4 "5-0" Police patrol if none exists
+                        // Spawn Tier 4+ "5-0" Police patrol if none exists
                         if (currentTier >= 4 && !enemies.some(e => e instanceof FiveZeroPoliceEnemy)) {
                             enemies.push(new FiveZeroPoliceEnemy());
                         }
                     }
                 }
 
-                player.update(timestamp, delta);
+                player.update(timestamp, delta, gpInput);
                 player.draw();
 
                 projectiles.forEach(p => { p.update(); p.draw(); });
@@ -1266,6 +1426,7 @@
 
                             if (enemy.invincible) {
                                 soundManager.playDeflect();
+                                gamepadManager.triggerHaptic(80, 0.2, 0.4);
                                 for (let i = 0; i < 6; i++) {
                                     particles.push(new SparkParticle(proj.x, proj.y));
                                 }
@@ -1296,6 +1457,7 @@
                     if (checkCircleCollision(player, pw)) {
                         pw.markedForDeletion = true;
                         soundManager.playPowerup();
+                        gamepadManager.triggerHaptic(200, 0.6, 0.8);
 
                         if (pw.type === 'DELUSION_SHIELD') {
                             player.shieldTimer = player.maxShieldTime;
@@ -1345,6 +1507,7 @@
         function triggerGameOver() {
             gameState = 'GAMEOVER';
             soundManager.playGameOver();
+            gamepadManager.triggerHaptic(500, 1.0, 1.0);
             hud.classList.add('hidden');
             gameOverScreen.classList.remove('hidden');
 
